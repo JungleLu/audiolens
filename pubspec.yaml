@@ -1,7 +1,9 @@
 name: audiolens
-description: AudioLens MVP for immersive English video learning.
+description: AudioLens — immersive English learning from any local video, with tap-to-analyze AI and a persisted notebook.
 publish_to: "none"
 version: 0.1.0+1
+homepage: https://github.com/JungleLu/audiolens
+repository: https://github.com/JungleLu/audiolens
 
 environment:
   sdk: ">=3.4.0 <4.0.0"
