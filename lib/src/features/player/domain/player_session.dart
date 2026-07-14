@@ -15,6 +15,7 @@ class PlayerSession {
     required this.bPoint,
     required this.subtitleMode,
     required this.currentPosition,
+    required this.totalDuration,
     required this.isAnalyzing,
     required this.analysis,
     required this.selectedWord,
@@ -31,6 +32,7 @@ class PlayerSession {
   final Duration? bPoint;
   final SubtitleMode subtitleMode;
   final Duration currentPosition;
+  final Duration totalDuration;
   final bool isAnalyzing;
   final AnalysisResult? analysis;
   final String? selectedWord;
@@ -54,6 +56,7 @@ class PlayerSession {
     Duration? bPoint,
     SubtitleMode? subtitleMode,
     Duration? currentPosition,
+    Duration? totalDuration,
     bool? isAnalyzing,
     AnalysisResult? analysis,
     String? selectedWord,
@@ -74,6 +77,7 @@ class PlayerSession {
       bPoint: clearB ? null : (bPoint ?? this.bPoint),
       subtitleMode: subtitleMode ?? this.subtitleMode,
       currentPosition: currentPosition ?? this.currentPosition,
+      totalDuration: totalDuration ?? this.totalDuration,
       isAnalyzing: isAnalyzing ?? this.isAnalyzing,
       analysis: clearAnalysis ? null : (analysis ?? this.analysis),
       selectedWord: selectedWord ?? this.selectedWord,

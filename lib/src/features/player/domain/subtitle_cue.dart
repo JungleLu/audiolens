@@ -23,4 +23,8 @@ class SubtitleCue {
   final String english;
   final String chinese;
   final List<SubtitleToken> tokens;
+
+  /// The non-Chinese line when the subtitle is bilingual; otherwise whichever
+  /// single language the file provides.
+  String get original => english.isNotEmpty ? english : chinese;
 }

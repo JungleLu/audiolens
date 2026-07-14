@@ -23,11 +23,17 @@ class AiSettingsController extends Notifier<AiConfig> {
   static const _kMaxContext = 'ai.maxContext';
   static const _kPreferCustom = 'ai.preferCustom';
 
+  /// Completes when the persisted config has been loaded. Readers that must
+  /// not act on the default config (e.g. AnalysisService's first request after
+  /// startup) await this before reading `state`.
+  Future<void> get ready => _ready;
+  late final Future<void> _ready;
+
   @override
   AiConfig build() {
     // Hydrate asynchronously; defaults are returned immediately so any
     // synchronous reader (e.g. AnalysisService) always has a valid config.
-    _load();
+    _ready = _load();
     return _defaultConfig;
   }
 

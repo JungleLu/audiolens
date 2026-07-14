@@ -1,5 +1,5 @@
 enum SubtitleMode {
-  english('纯英文'),
+  english('原文'),
   chinese('纯中文'),
   bilingual('双语'),
   hidden('无字幕');

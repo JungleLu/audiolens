@@ -11,26 +11,7 @@ final homeControllerProvider = NotifierProvider<HomeController, List<VideoLibrar
 class HomeController extends Notifier<List<VideoLibraryItem>> {
   @override
   List<VideoLibraryItem> build() {
-    return const [
-      VideoLibraryItem(
-        id: 'friends-s03e03',
-        title: 'Friends.S03E03.1996.BluRay.1080p.x265.10bit.MNHD-FRDS.mkv',
-        subtitleLabel: 'Friends.S03E03.en-cn.srt',
-        durationLabel: '22:48',
-        coverLabel: 'FRIENDS',
-        words: 3079,
-        watchCount: 4,
-      ),
-      VideoLibraryItem(
-        id: 'sherlock-clip',
-        title: 'Sherlock.Clinic.Scene.1080p.mp4',
-        subtitleLabel: 'Sherlock.Clinic.Scene.en.srt',
-        durationLabel: '08:31',
-        coverLabel: 'SHERLOCK',
-        words: 1184,
-        watchCount: 1,
-      ),
-    ];
+    return const [];
   }
 
   Future<VideoLibraryItem?> importVideo() async {
@@ -59,6 +40,10 @@ class HomeController extends Notifier<List<VideoLibraryItem>> {
 
     state = [item, ...state];
     return item;
+  }
+
+  void remove(String id) {
+    state = state.where((item) => item.id != id).toList();
   }
 
   String _coverLabel(String title) {

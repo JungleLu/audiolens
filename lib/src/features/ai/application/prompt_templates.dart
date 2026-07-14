@@ -26,8 +26,10 @@ class PromptTemplates {
 
 要求：
 1. 只输出 JSON，不要任何多余文字。
-2. 释义与讲解自然、贴合中国英语学习者。
+2. 释义与讲解使用中文，自然、贴合中国英语学习者。
 3. 结合给定的语境（影视台词）给出在该语境下的解释。
+4. sentence.paraphrases 必须是该英文整句的「英文」同义改写（2 条），不要用中文。
+5. sentence.translation 是整句的中文通顺翻译。
 ''';
 
   static String buildAnalysisUserPrompt({required String word, required String sentence}) {

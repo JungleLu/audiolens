@@ -32,8 +32,7 @@ class SubtitleParser {
       }
 
       final bodyLines = lines.sublist(2);
-      final english = bodyLines.isNotEmpty ? bodyLines.first.trim() : '';
-      final chinese = bodyLines.length > 1 ? bodyLines.sublist(1).join(' ').trim() : '';
+      final (english, chinese) = _splitLanguages(bodyLines);
 
       cues.add(
         SubtitleCue(
@@ -95,8 +94,7 @@ class SubtitleParser {
       }
 
       final segments = text.split('\n').where((s) => s.trim().isNotEmpty).toList();
-      final english = segments.isNotEmpty ? segments.first.trim() : '';
-      final chinese = segments.length > 1 ? segments.sublist(1).join(' ').trim() : '';
+      final (english, chinese) = _splitLanguages(segments);
 
       cues.add(
         SubtitleCue(
@@ -114,9 +112,37 @@ class SubtitleParser {
   }
 
   String _cleanAssText(String raw) {
-    // Drop override tag blocks like {\pos(...)} and normalize hard line breaks.
-    return raw
-        .replaceAll(RegExp(r'\{[^}]*\}'), '')
+    // ASS text is interleaved with {...} override blocks. A {\p<n>} tag with
+    // n>=1 switches into vector-drawing mode, where the "text" between blocks is
+    // path coordinates (m/l/b commands) rather than words; {\p0} switches back.
+    // Walk the string, tracking drawing state, and keep only real text runs.
+    final buffer = StringBuffer();
+    var drawing = false;
+    var i = 0;
+    while (i < raw.length) {
+      final open = raw.indexOf('{', i);
+      if (open == -1) {
+        if (!drawing) buffer.write(raw.substring(i));
+        break;
+      }
+      if (!drawing) buffer.write(raw.substring(i, open));
+
+      final close = raw.indexOf('}', open);
+      if (close == -1) {
+        // Unterminated block — treat the rest as-is (outside drawing) and stop.
+        if (!drawing) buffer.write(raw.substring(open));
+        break;
+      }
+      final block = raw.substring(open + 1, close);
+      final drawMatch = RegExp(r'\\p(\d+)').allMatches(block).lastOrNull;
+      if (drawMatch != null) {
+        drawing = (int.tryParse(drawMatch.group(1)!) ?? 0) >= 1;
+      }
+      i = close + 1;
+    }
+
+    return buffer
+        .toString()
         .replaceAll(RegExp(r'\\[Nn]'), '\n')
         .replaceAll(RegExp(r'\\h'), ' ')
         .trim();
@@ -146,6 +172,30 @@ class SubtitleParser {
     final second = int.tryParse(secParts[0]) ?? 0;
     final centi = secParts.length > 1 ? (int.tryParse(secParts[1].padRight(2, '0').substring(0, 2)) ?? 0) : 0;
     return ((((hour * 60) + minute) * 60) + second) * 1000 + centi * 10;
+  }
+
+  /// Split bilingual subtitle body lines into (english, chinese) by content
+  /// rather than position — files vary in ordering (English-first vs
+  /// Chinese-first), so classify each line by whether it contains CJK.
+  (String, String) _splitLanguages(List<String> lines) {
+    final english = <String>[];
+    final chinese = <String>[];
+    for (final raw in lines) {
+      final line = raw.trim();
+      if (line.isEmpty) {
+        continue;
+      }
+      if (_hasCjk(line)) {
+        chinese.add(line);
+      } else {
+        english.add(line);
+      }
+    }
+    return (english.join(' ').trim(), chinese.join(' ').trim());
+  }
+
+  bool _hasCjk(String text) {
+    return RegExp(r'[一-鿿㐀-䶿豈-﫿]').hasMatch(text);
   }
 
   List<SubtitleToken> _tokenize(String line) {

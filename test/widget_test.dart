@@ -35,6 +35,22 @@ broken block
 ''';
       expect(parser.parse(srt), isEmpty);
     });
+
+    test('drops ASS vector-drawing coordinates, keeps real text', () {
+      const ass = '''
+[Script Info]
+Title: sample
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:01.00,0:00:03.00,Default,,0,0,0,,{\\p1}m 211 -8 b 217 -6 217 -4{\\p0}
+Dialogue: 0,0:00:04.00,0:00:06.00,Default,,0,0,0,,{\\pos(100,200)}'cause you're there for me too.
+''';
+      final cues = parser.parse(ass);
+
+      expect(cues, hasLength(1));
+      expect(cues.single.english, "'cause you're there for me too.");
+    });
   });
 
   group('NotebookRepository.buildId', () {

@@ -40,7 +40,7 @@ class AnalysisBottomSheet extends ConsumerWidget {
                 style: Theme.of(context).textTheme.titleMedium,
               ),
             ] else if (analysis != null) ...[
-              _AnalysisView(analysis: analysis),
+              _AnalysisView(analysis: analysis, isSentence: session.selectedWord == null),
               const SizedBox(height: 18),
               SizedBox(
                 width: double.infinity,
@@ -76,30 +76,72 @@ class AnalysisBottomSheet extends ConsumerWidget {
 }
 
 class _AnalysisView extends StatelessWidget {
-  const _AnalysisView({required this.analysis});
+  const _AnalysisView({required this.analysis, required this.isSentence});
 
   final AnalysisResult analysis;
+  final bool isSentence;
 
   @override
   Widget build(BuildContext context) {
+    return isSentence ? _buildSentenceView(context) : _buildWordView(context);
+  }
+
+  Widget _buildSentenceView(BuildContext context) {
+    final s = analysis.sentence;
+    final w = analysis.word;
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          analysis.word.word,
+          s.sentence,
+          style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+        ),
+        const SizedBox(height: 6),
+        Text(
+          s.translation,
+          style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: AppColors.sea),
+        ),
+        const SizedBox(height: 18),
+        _block(
+          context,
+          title: '语法分析',
+          body:
+              '结构拆分：${s.structure.join(' + ')}\n语法点：${s.grammarNotes.join('；')}\n俚语拓展：${s.slangNotes.join('；')}',
+        ),
+        if (s.paraphrases.isNotEmpty) ...[
+          const SizedBox(height: 14),
+          _block(context, title: '同义改写', body: s.paraphrases.join('\n')),
+        ],
+        const SizedBox(height: 14),
+        _block(
+          context,
+          title: '重点单词',
+          body:
+              '${w.word}${w.partOfSpeech.isEmpty ? '' : '（${w.partOfSpeech}）'}\n释义：${w.meaning}\n搭配：${w.collocations.join(' / ')}',
+        ),
+      ],
+    );
+  }
+
+  Widget _buildWordView(BuildContext context) {
+    final w = analysis.word;
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          w.word,
           style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 6),
         Text(
-          '英 ${analysis.word.phoneticUk}   ·   美 ${analysis.word.phoneticUs}   ·   ${analysis.word.partOfSpeech}',
+          '英 ${w.phoneticUk}   ·   美 ${w.phoneticUs}   ·   ${w.partOfSpeech}',
           style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: AppColors.sea),
         ),
         const SizedBox(height: 18),
         _block(
           context,
           title: '单词区',
-          body:
-              '释义：${analysis.word.meaning}\n搭配：${analysis.word.collocations.join(' / ')}\n词根词缀：${analysis.word.wordRoot}',
+          body: '释义：${w.meaning}\n搭配：${w.collocations.join(' / ')}\n词根词缀：${w.wordRoot}',
         ),
         const SizedBox(height: 14),
         _block(

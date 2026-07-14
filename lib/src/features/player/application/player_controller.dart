@@ -1,7 +1,10 @@
+import 'dart:async';
+import 'dart:convert';
 import 'dart:io';
 
 import 'package:file_picker/file_picker.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gbk_codec/gbk_codec.dart';
 import 'package:path/path.dart' as p;
 
 import '../../ai/application/analysis_service.dart';
@@ -10,6 +13,7 @@ import '../../ai_settings/application/ai_settings_controller.dart';
 import '../../home/domain/video_library_item.dart';
 import '../../storage/data/notebook_repository.dart';
 import '../domain/player_session.dart';
+import '../domain/subtitle_cue.dart';
 import '../domain/subtitle_mode.dart';
 import 'media_kit_player_controller.dart';
 import 'subtitle_parser.dart';
@@ -41,6 +45,7 @@ class PlayerController extends Notifier<PlayerSession> {
     final cues = parser.parse(_sampleSrt);
     final mediaController = ref.read(mediaKitPlayerProvider);
     mediaController.bindPosition(_handlePositionChanged);
+    mediaController.bindDuration(_handleDurationChanged);
 
     return PlayerSession(
       title: 'Friends.S03E03.1996.BluRay.1080p.x265.10bit.MNHD-FRDS.mkv',
@@ -51,6 +56,7 @@ class PlayerController extends Notifier<PlayerSession> {
       bPoint: null,
       subtitleMode: SubtitleMode.english,
       currentPosition: cues.isEmpty ? Duration.zero : Duration(milliseconds: cues.first.startMs),
+      totalDuration: Duration.zero,
       isAnalyzing: false,
       analysis: null,
       selectedWord: null,
@@ -71,6 +77,7 @@ class PlayerController extends Notifier<PlayerSession> {
       activeCueIndex: cues.isEmpty ? -1 : 0,
       currentPosition: cues.isEmpty ? Duration.zero : Duration(milliseconds: cues.first.startMs),
       mediaPath: item?.mediaPath,
+      totalDuration: Duration.zero,
       clearAnalysis: true,
       selectedWord: null,
       clearA: true,
@@ -81,6 +88,7 @@ class PlayerController extends Notifier<PlayerSession> {
     if (item?.mediaPath != null) {
       await mediaController.openLocalFile(item!.mediaPath!);
     }
+    await _syncSubtitleTrack();
   }
 
   Future<void> initialize() async {
@@ -119,6 +127,7 @@ class PlayerController extends Notifier<PlayerSession> {
       selectedWord: null,
       clearError: true,
     );
+    await _syncSubtitleTrack();
     return true;
   }
 
@@ -130,6 +139,57 @@ class PlayerController extends Notifier<PlayerSession> {
 
   void setSubtitleMode(SubtitleMode mode) {
     state = state.copyWith(subtitleMode: mode);
+    unawaited(_syncSubtitleTrack());
+  }
+
+  Future<void> _syncSubtitleTrack() async {
+    final mediaController = ref.read(mediaKitPlayerProvider);
+    final srt = _buildSrt(state.cues, state.subtitleMode);
+    await mediaController.setSubtitleData(srt);
+  }
+
+  String? _buildSrt(List<SubtitleCue> cues, SubtitleMode mode) {
+    if (mode == SubtitleMode.hidden || cues.isEmpty) {
+      return null;
+    }
+
+    final buffer = StringBuffer();
+    var index = 0;
+    for (final cue in cues) {
+      final String text;
+      switch (mode) {
+        case SubtitleMode.english:
+          text = cue.original;
+        case SubtitleMode.chinese:
+          text = cue.chinese;
+        case SubtitleMode.bilingual:
+          text = [cue.english, cue.chinese].where((l) => l.isNotEmpty).join('\n');
+        case SubtitleMode.hidden:
+          text = '';
+      }
+      if (text.trim().isEmpty) {
+        continue;
+      }
+      index += 1;
+      buffer
+        ..writeln(index)
+        ..writeln('${_formatSrtTime(cue.startMs)} --> ${_formatSrtTime(cue.endMs)}')
+        ..writeln(text)
+        ..writeln();
+    }
+
+    final result = buffer.toString();
+    return result.trim().isEmpty ? null : result;
+  }
+
+  String _formatSrtTime(int totalMs) {
+    final ms = totalMs.remainder(1000).toString().padLeft(3, '0');
+    final totalSeconds = totalMs ~/ 1000;
+    final seconds = totalSeconds.remainder(60).toString().padLeft(2, '0');
+    final totalMinutes = totalSeconds ~/ 60;
+    final minutes = totalMinutes.remainder(60).toString().padLeft(2, '0');
+    final hours = (totalMinutes ~/ 60).toString().padLeft(2, '0');
+    return '$hours:$minutes:$seconds,$ms';
   }
 
   void markA() {
@@ -169,8 +229,8 @@ class PlayerController extends Notifier<PlayerSession> {
       final preferCustom = ref.read(aiSettingsControllerProvider).preferCustomModel;
       final service = ref.read(analysisServiceProvider);
       final result = await service.analyzeSubtitleSelection(
-        word: word ?? cue.english,
-        sentence: cue.english,
+        word: word ?? cue.original,
+        sentence: cue.original,
         timestampMs: cue.startMs,
         hasNetwork: true,
         preferCustom: preferCustom,
@@ -198,6 +258,58 @@ class PlayerController extends Notifier<PlayerSession> {
     state = state.copyWith(currentPosition: target);
   }
 
+  /// Jump playback to the start of the next subtitle cue relative to the
+  /// current position. No-op when already at/after the last cue.
+  Future<void> jumpToNextCue() async {
+    final cues = state.cues;
+    if (cues.isEmpty) {
+      return;
+    }
+    final positionMs = state.currentPosition.inMilliseconds;
+    final index = cues.indexWhere((cue) => cue.startMs > positionMs + 250);
+    if (index == -1) {
+      return;
+    }
+    _seekToCue(index);
+  }
+
+  /// Jump playback to the start of the previous subtitle cue. When playback is
+  /// already more than 1s into the current cue, this restarts that cue instead
+  /// of skipping back — matching the usual "replay this line" expectation.
+  Future<void> jumpToPreviousCue() async {
+    final cues = state.cues;
+    if (cues.isEmpty) {
+      return;
+    }
+    final positionMs = state.currentPosition.inMilliseconds;
+    var currentStartIndex = -1;
+    for (var i = cues.length - 1; i >= 0; i--) {
+      if (cues[i].startMs <= positionMs) {
+        currentStartIndex = i;
+        break;
+      }
+    }
+    if (currentStartIndex == -1) {
+      return;
+    }
+    final withinCurrent = positionMs - cues[currentStartIndex].startMs;
+    final targetIndex = withinCurrent > 1000 ? currentStartIndex : currentStartIndex - 1;
+    if (targetIndex < 0) {
+      _seekToCue(currentStartIndex);
+      return;
+    }
+    _seekToCue(targetIndex);
+  }
+
+  void _seekToCue(int index) {
+    final cue = state.cues[index];
+    state = state.copyWith(
+      activeCueIndex: index,
+      currentPosition: Duration(milliseconds: cue.startMs),
+    );
+    ref.read(mediaKitPlayerProvider).seek(Duration(milliseconds: cue.startMs));
+  }
+
   void selectCue(int index) {
     if (index < 0 || index >= state.cues.length) {
       return;
@@ -220,7 +332,40 @@ class PlayerController extends Notifier<PlayerSession> {
     if (!await file.exists()) {
       return null;
     }
-    return file.readAsString();
+    final bytes = await file.readAsBytes();
+    return _decodeSubtitleBytes(bytes);
+  }
+
+  String _decodeSubtitleBytes(List<int> bytes) {
+    // Subtitle files vary in encoding. Honor a BOM when present.
+    if (bytes.length >= 2 && bytes[0] == 0xFF && bytes[1] == 0xFE) {
+      return _decodeUtf16(bytes.sublist(2), littleEndian: true);
+    }
+    if (bytes.length >= 2 && bytes[0] == 0xFE && bytes[1] == 0xFF) {
+      return _decodeUtf16(bytes.sublist(2), littleEndian: false);
+    }
+    if (bytes.length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF) {
+      return utf8.decode(bytes.sublist(3), allowMalformed: true);
+    }
+    // No BOM: try strict UTF-8 first. Chinese subtitle files are frequently
+    // saved as GBK/GB2312, which is invalid UTF-8 — on failure fall back to GBK.
+    try {
+      return utf8.decode(bytes);
+    } on FormatException {
+      try {
+        return gbk.decode(bytes);
+      } catch (_) {
+        return utf8.decode(bytes, allowMalformed: true);
+      }
+    }
+  }
+
+  String _decodeUtf16(List<int> bytes, {required bool littleEndian}) {
+    final units = <int>[];
+    for (var i = 0; i + 1 < bytes.length; i += 2) {
+      units.add(littleEndian ? bytes[i] | (bytes[i + 1] << 8) : (bytes[i] << 8) | bytes[i + 1]);
+    }
+    return String.fromCharCodes(units);
   }
 
   String get _currentVideoId {
@@ -229,6 +374,13 @@ class PlayerController extends Notifier<PlayerSession> {
       return 'friends-s03e03';
     }
     return mediaPath;
+  }
+
+  void _handleDurationChanged(Duration duration) {
+    if (duration == state.totalDuration) {
+      return;
+    }
+    state = state.copyWith(totalDuration: duration);
   }
 
   Future<void> _handlePositionChanged(Duration position) async {
@@ -244,7 +396,11 @@ class PlayerController extends Notifier<PlayerSession> {
     final positionMs = position.inMilliseconds;
     final nextIndex = cues.indexWhere((cue) => positionMs >= cue.startMs && positionMs <= cue.endMs);
     if (nextIndex != -1 && nextIndex != state.activeCueIndex) {
-      state = state.copyWith(activeCueIndex: nextIndex, currentPosition: position, clearAnalysis: true);
+      // Advancing the active cue during playback must not wipe an open
+      // analysis — the result belongs to the cue the user tapped, and the
+      // analysis sheet watches session.analysis. Clearing happens on
+      // selectCue / importSubtitle / when a new analysis starts instead.
+      state = state.copyWith(activeCueIndex: nextIndex, currentPosition: position);
       return;
     }
     state = state.copyWith(currentPosition: position);

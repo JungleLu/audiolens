@@ -9,7 +9,6 @@ import '../../home/domain/video_library_item.dart';
 import '../application/media_kit_player_controller.dart';
 import '../application/player_controller.dart';
 import '../domain/player_session.dart';
-import '../domain/subtitle_cue.dart';
 import '../domain/subtitle_mode.dart';
 import 'widgets/analysis_bottom_sheet.dart';
 
@@ -47,123 +46,77 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
         child: SafeArea(
           child: Column(
             children: [
-              Expanded(
-                child: ListView(
-                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
-                  children: [
-                    _PlayerHero(
-                      mediaController: mediaController,
-                      session: session,
-                      onBack: () => context.pop(),
-                      onTogglePlayback: controller.togglePlayback,
-                      onSeek: controller.seekTo,
-                    ),
-                    const SizedBox(height: 16),
-                    SectionCard(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Row(
-                            children: [
-                              Expanded(
-                                child: Text(
-                                  session.title,
-                                  style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
-                                ),
-                              ),
-                              IconButton(
-                                tooltip: '导入字幕',
-                                onPressed: () async {
-                                  final loaded = await controller.importSubtitle();
-                                  if (loaded && context.mounted) {
-                                    ScaffoldMessenger.of(context).showSnackBar(
-                                      const SnackBar(content: Text('字幕已导入')),
-                                    );
-                                  }
-                                },
-                                icon: const Icon(Icons.subtitles_outlined),
-                              ),
-                            ],
-                          ),
-                          if (session.errorMessage != null) ...[
-                            const SizedBox(height: 12),
-                            Text(
-                              session.errorMessage!,
-                              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.red.shade700),
-                            ),
-                          ],
-                          const SizedBox(height: 12),
-                          Wrap(
-                            spacing: 8,
-                            children: SubtitleMode.values.map((mode) {
-                              final selected = session.subtitleMode == mode;
-                              return ChoiceChip(
-                                label: Text(mode.label),
-                                selected: selected,
-                                onSelected: (_) => controller.setSubtitleMode(mode),
-                              );
-                            }).toList(),
-                          ),
-                          const SizedBox(height: 20),
-                          _SubtitlePanel(session: session, controller: controller),
-                        ],
-                      ),
-                    ),
-                    const SizedBox(height: 16),
-                    SectionCard(
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.start,
-                        children: [
-                          Text(
-                            '播放增强',
-                            style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
-                          ),
-                          const SizedBox(height: 16),
-                          Row(
-                            children: [
-                              Expanded(
-                                child: _MetricTile(
-                                  label: '倍速',
-                                  value: '${_formatSpeed(session.speed)}x',
-                                  onTap: () => _showSpeedPicker(
-                                    context,
-                                    currentSpeed: session.speed,
-                                    onSelected: controller.setSpeed,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: _MetricTile(
-                                  label: 'A 点',
-                                  value: session.aPoint == null ? '未设置' : _formatDuration(session.aPoint!),
-                                  onTap: controller.markA,
-                                ),
-                              ),
-                              const SizedBox(width: 12),
-                              Expanded(
-                                child: _MetricTile(
-                                  label: 'B 点',
-                                  value: session.bPoint == null ? '未设置' : _formatDuration(session.bPoint!),
-                                  onTap: controller.markB,
-                                ),
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 16),
-                          OutlinedButton.icon(
-                            onPressed: controller.clearLoop,
-                            icon: const Icon(Icons.loop),
-                            label: const Text('清除 AB 循环'),
-                          ),
-                        ],
-                      ),
-                    ),
-                  ],
+              Padding(
+                padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                child: ConstrainedBox(
+                  constraints: BoxConstraints(
+                    maxHeight: MediaQuery.of(context).size.height * 0.42,
+                  ),
+                  child: _PlayerHero(
+                    mediaController: mediaController,
+                    session: session,
+                    onBack: () => context.pop(),
+                  ),
                 ),
               ),
+              Expanded(
+                child: Padding(
+                  padding: const EdgeInsets.fromLTRB(16, 12, 16, 0),
+                  child: SectionCard(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Row(
+                          children: [
+                            Expanded(
+                              child: Text(
+                                session.title,
+                                style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+                              ),
+                            ),
+                            IconButton(
+                              tooltip: '导入字幕',
+                              onPressed: () async {
+                                final loaded = await controller.importSubtitle();
+                                if (loaded && context.mounted) {
+                                  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('字幕已导入')),
+                                  );
+                                }
+                              },
+                              icon: const Icon(Icons.subtitles_outlined),
+                            ),
+                          ],
+                        ),
+                        if (session.errorMessage != null) ...[
+                          const SizedBox(height: 12),
+                          Text(
+                            session.errorMessage!,
+                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.red.shade700),
+                          ),
+                        ],
+                        const SizedBox(height: 16),
+                        Expanded(
+                          child: _SubtitlePanel(session: session, controller: controller),
+                        ),
+                      ],
+                    ),
+                  ),
+                ),
+              ),
+              const SizedBox(height: 12),
               _BottomBar(
                 session: session,
+                onLanguage: () => _showSubtitlePicker(
+                  context,
+                  currentMode: session.subtitleMode,
+                  onSelected: controller.setSubtitleMode,
+                ),
+                onSpeed: () => _showSpeedPicker(
+                  context,
+                  currentSpeed: session.speed,
+                  onSelected: controller.setSpeed,
+                ),
                 onToggleLoop: () {
                   if (session.aPoint == null) {
                     controller.markA();
@@ -174,6 +127,8 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
                   }
                 },
                 onNotebook: () => context.push('/notebook'),
+                onTogglePlayback: controller.togglePlayback,
+                onSeek: controller.seekTo,
               ),
             ],
           ),
@@ -183,116 +138,155 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
   }
 }
 
-class _SubtitlePanel extends StatelessWidget {
+class _SubtitlePanel extends StatefulWidget {
   const _SubtitlePanel({required this.session, required this.controller});
 
   final PlayerSession session;
   final PlayerController controller;
 
   @override
+  State<_SubtitlePanel> createState() => _SubtitlePanelState();
+}
+
+class _SubtitlePanelState extends State<_SubtitlePanel> {
+  final Map<int, GlobalKey> _itemKeys = {};
+  final ScrollController _scrollController = ScrollController();
+
+  @override
+  void didUpdateWidget(_SubtitlePanel oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (widget.session.activeCueIndex != oldWidget.session.activeCueIndex) {
+      _scrollActiveIntoView();
+    }
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  void _scrollActiveIntoView() {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      final targetCtx = _itemKeys[widget.session.activeCueIndex]?.currentContext;
+      if (targetCtx != null) {
+        Scrollable.ensureVisible(
+          targetCtx,
+          alignment: 0.4,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
+      }
+    });
+  }
+
+  Future<void> _analyze(int index) async {
+    widget.controller.selectCue(index);
+    // Open the sheet first so it can show the loading animation while the
+    // request runs, then kick off analysis. Awaiting before opening would
+    // hide the spinner and jump straight to the result/fallback.
+    showModalBottomSheet<void>(
+      context: context,
+      isScrollControlled: true,
+      showDragHandle: false,
+      builder: (_) => const AnalysisBottomSheet(),
+    );
+    await widget.controller.analyzeCurrentCue();
+  }
+
+  @override
   Widget build(BuildContext context) {
-    final cue = session.activeCue;
-    if (cue == null) {
+    final session = widget.session;
+    final mode = session.subtitleMode;
+
+    if (session.cues.isEmpty) {
       return const Text('暂无字幕');
     }
-
-    final mode = session.subtitleMode;
-    final showEnglish = mode == SubtitleMode.english || mode == SubtitleMode.bilingual;
-    final showChinese = mode == SubtitleMode.chinese || mode == SubtitleMode.bilingual;
 
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         Text(
-          '当前字幕',
-          style: Theme.of(context).textTheme.labelLarge?.copyWith(color: AppColors.moss),
-        ),
-        const SizedBox(height: 10),
-        if (mode == SubtitleMode.hidden)
-          Text(
-            '字幕已隐藏',
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: AppColors.moss),
-          ),
-        if (showEnglish)
-          Wrap(
-          children: cue.tokens.map((token) {
-            final isSelected = session.selectedWord == token.text;
-            return GestureDetector(
-              onTap: token.isWord
-                  ? () async {
-                      await controller.analyzeCurrentCue(word: token.text);
-                      if (context.mounted) {
-                        showModalBottomSheet<void>(
-                          context: context,
-                          isScrollControlled: true,
-                          showDragHandle: false,
-                          builder: (_) => const AnalysisBottomSheet(),
-                        );
-                      }
-                    }
-                  : null,
-              child: Container(
-                padding: token.isWord ? const EdgeInsets.symmetric(horizontal: 3, vertical: 2) : EdgeInsets.zero,
-                decoration: isSelected
-                    ? BoxDecoration(
-                        color: const Color(0xFFDFEAF0),
-                        borderRadius: BorderRadius.circular(6),
-                      )
-                    : null,
-                child: Text(
-                  token.text,
-                  style: Theme.of(context).textTheme.headlineSmall?.copyWith(
-                        fontWeight: token.isWord ? FontWeight.w700 : FontWeight.w500,
-                        height: 1.4,
-                        color: token.isWord ? AppColors.ink : AppColors.moss,
-                      ),
-                ),
-              ),
-            );
-          }).toList(),
-        ),
-        if (showChinese && cue.chinese.isNotEmpty) ...[
-          const SizedBox(height: 12),
-          Text(
-            cue.chinese,
-            style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: AppColors.moss),
-          ),
-        ],
-        const SizedBox(height: 18),
-        FilledButton.tonalIcon(
-          onPressed: () async {
-            await controller.analyzeCurrentCue();
-            if (context.mounted) {
-              showModalBottomSheet<void>(
-                context: context,
-                isScrollControlled: true,
-                showDragHandle: false,
-                builder: (_) => const AnalysisBottomSheet(),
-              );
-            }
-          },
-          icon: const Icon(Icons.auto_awesome_outlined),
-          label: const Text('整句解析'),
-        ),
-        const SizedBox(height: 18),
-        Text(
           '字幕列表',
           style: Theme.of(context).textTheme.labelLarge?.copyWith(color: AppColors.moss),
         ),
         const SizedBox(height: 10),
-        Column(
+        Expanded(
+          child: SingleChildScrollView(
+            controller: _scrollController,
+            child: Column(
           children: session.cues.asMap().entries.map((entry) {
-            final selected = entry.key == session.activeCueIndex;
-            return ListTile(
-              contentPadding: EdgeInsets.zero,
-              onTap: () => controller.selectCue(entry.key),
-              title: Text(entry.value.english),
-              subtitle: entry.value.chinese.isEmpty ? null : Text(entry.value.chinese),
-              trailing: Text(_formatTimestamp(entry.value.startMs)),
-              tileColor: selected ? const Color(0xFFF1EEE7) : null,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(14)),
+            final index = entry.key;
+            final cue = entry.value;
+            final selected = index == session.activeCueIndex;
+            final key = _itemKeys.putIfAbsent(index, GlobalKey.new);
+
+            final showEnglish = mode == SubtitleMode.english || mode == SubtitleMode.bilingual;
+            final showChinese = mode == SubtitleMode.chinese || mode == SubtitleMode.bilingual;
+            final englishText = mode == SubtitleMode.english ? cue.original : cue.english;
+            const activeColor = AppColors.sea;
+
+            return Container(
+              key: key,
+              margin: const EdgeInsets.only(bottom: 6),
+              decoration: BoxDecoration(
+                color: selected ? const Color(0xFFEAF1F6) : null,
+                borderRadius: BorderRadius.circular(14),
+              ),
+              child: InkWell(
+                borderRadius: BorderRadius.circular(14),
+                onTap: () => widget.controller.selectCue(index),
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
+                  child: Row(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Expanded(
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          children: [
+                            if (showEnglish && englishText.isNotEmpty)
+                              Text(
+                                englishText,
+                                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
+                                      color: selected ? activeColor : AppColors.ink,
+                                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
+                                    ),
+                              ),
+                            if (showChinese && cue.chinese.isNotEmpty) ...[
+                              if (showEnglish && englishText.isNotEmpty) const SizedBox(height: 4),
+                              Text(
+                                cue.chinese,
+                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                                      color: selected ? activeColor : AppColors.moss,
+                                      fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
+                                    ),
+                              ),
+                            ],
+                          ],
+                        ),
+                      ),
+                      const SizedBox(width: 8),
+                      IconButton(
+                        tooltip: 'AI 解析该句',
+                        visualDensity: VisualDensity.compact,
+                        onPressed: () => _analyze(index),
+                        icon: Icon(
+                          Icons.error_outline,
+                          color: selected ? activeColor : AppColors.moss,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ),
             );
           }).toList(),
+            ),
+          ),
         ),
       ],
     );
@@ -304,33 +298,14 @@ class _PlayerHero extends StatelessWidget {
     required this.mediaController,
     required this.session,
     required this.onBack,
-    required this.onTogglePlayback,
-    required this.onSeek,
   });
 
   final MediaKitPlayerController mediaController;
   final PlayerSession session;
   final VoidCallback onBack;
-  final Future<void> Function() onTogglePlayback;
-  final Future<void> Function(Duration position) onSeek;
-
-  String _overlayText(SubtitleCue cue, SubtitleMode mode) {
-    switch (mode) {
-      case SubtitleMode.english:
-        return cue.english;
-      case SubtitleMode.chinese:
-        return cue.chinese;
-      case SubtitleMode.bilingual:
-        return cue.chinese.isEmpty ? cue.english : '${cue.english}\n${cue.chinese}';
-      case SubtitleMode.hidden:
-        return '';
-    }
-  }
 
   @override
   Widget build(BuildContext context) {
-    final cue = session.activeCue;
-
     return AspectRatio(
       aspectRatio: 16 / 9,
       child: ClipRRect(
@@ -346,8 +321,11 @@ class _PlayerHero extends StatelessWidget {
                   topButtonBar: [],
                 ),
                 // Fullscreen: expose speed and subtitle controls since the panels
-                // below the player are not visible.
+                // below the player are not visible. Disable the built-in
+                // double-tap ±10s seek so our own edge double-tap (prev/next
+                // cue) is the only double-tap handler.
                 fullscreen: const MaterialVideoControlsThemeData(
+                  seekOnDoubleTap: false,
                   topButtonBar: [
                     Spacer(),
                     _SpeedControlButton(),
@@ -356,7 +334,10 @@ class _PlayerHero extends StatelessWidget {
                 ),
                 child: Video(
                   controller: mediaController.videoController,
-                  controls: MaterialVideoControls,
+                  controls: _immersiveVideoControls,
+                  // Native subtitles aren't tappable, so we hide them and render
+                  // our own overlay (with a fullscreen AI-analyze button) instead.
+                  subtitleViewConfiguration: const SubtitleViewConfiguration(visible: false),
                 ),
               ),
             ),
@@ -367,48 +348,6 @@ class _PlayerHero extends StatelessWidget {
                 onPressed: onBack,
                 style: IconButton.styleFrom(backgroundColor: Colors.black26, foregroundColor: Colors.white),
                 icon: const Icon(Icons.arrow_back),
-              ),
-            ),
-            if (cue != null && _overlayText(cue, session.subtitleMode).isNotEmpty)
-              Positioned(
-                left: 24,
-                right: 24,
-                bottom: 56,
-                child: Text(
-                  _overlayText(cue, session.subtitleMode),
-                  style: const TextStyle(color: Colors.white, fontSize: 24, fontWeight: FontWeight.w600),
-                  textAlign: TextAlign.center,
-                ),
-              ),
-            Positioned(
-              left: 20,
-              right: 20,
-              bottom: 16,
-              child: Row(
-                children: [
-                  IconButton(
-                    onPressed: () => onTogglePlayback(),
-                    icon: Icon(session.isPlaying ? Icons.pause : Icons.play_arrow, color: Colors.white),
-                  ),
-                  Text(_formatDuration(session.currentPosition), style: const TextStyle(color: Colors.white)),
-                  const SizedBox(width: 12),
-                  Expanded(
-                    child: Slider(
-                      value: cue == null || cue.endMs <= 0
-                          ? 0
-                          : (session.currentPosition.inMilliseconds / cue.endMs).clamp(0.0, 1.0),
-                      onChanged: cue == null || cue.endMs <= 0
-                          ? null
-                          : (value) => onSeek(
-                                Duration(milliseconds: (value * cue.endMs).round()),
-                              ),
-                    ),
-                  ),
-                  Text(
-                    cue == null ? '--:--' : _formatTimestamp(cue.endMs),
-                    style: const TextStyle(color: Colors.white),
-                  ),
-                ],
               ),
             ),
           ],
@@ -452,36 +391,180 @@ class _SubtitleControlButton extends ConsumerWidget {
         currentMode: mode,
         onSelected: controller.setSubtitleMode,
       ),
-      icon: const Icon(Icons.subtitles_outlined),
+      icon: const Icon(Icons.translate),
     );
   }
 }
 
-class _MetricTile extends StatelessWidget {
-  const _MetricTile({required this.label, required this.value, required this.onTap});
+Widget _immersiveVideoControls(VideoState state) {
+  return Stack(
+    fit: StackFit.expand,
+    children: [
+      MaterialVideoControls(state),
+      const _FullscreenCueSeekGestures(),
+      const _SubtitleOverlay(),
+    ],
+  );
+}
 
-  final String label;
-  final String value;
-  final VoidCallback onTap;
+/// Fullscreen-only double-tap zones on the left/right ~30% edges that jump to
+/// the previous / next subtitle cue.
+///
+/// The zones are [HitTestBehavior.opaque] so the pointer is consumed here and
+/// never reaches the built-in [MaterialVideoControls] double-tap recognizer
+/// underneath — otherwise its fixed ±10s seek wins the gesture arena. To keep
+/// the top button bar and bottom seek bar reachable, the zones only occupy a
+/// vertically-centred band (top/bottom margins left clear for the controls).
+/// Renders nothing outside fullscreen.
+class _FullscreenCueSeekGestures extends ConsumerWidget {
+  const _FullscreenCueSeekGestures();
 
   @override
-  Widget build(BuildContext context) {
-    return InkWell(
-      onTap: onTap,
-      borderRadius: BorderRadius.circular(18),
-      child: Container(
-        padding: const EdgeInsets.all(14),
-        decoration: BoxDecoration(
-          color: const Color(0xFFF4EFE6),
-          borderRadius: BorderRadius.circular(18),
+  Widget build(BuildContext context, WidgetRef ref) {
+    if (!isFullscreen(context)) {
+      return const SizedBox.shrink();
+    }
+    final controller = ref.read(playerControllerProvider.notifier);
+    return Column(
+      children: [
+        // Clear of the top button bar (speed / subtitle controls).
+        const Spacer(flex: 16),
+        Expanded(
+          flex: 59,
+          child: Row(
+            children: [
+              Expanded(
+                flex: 30,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onDoubleTap: controller.jumpToPreviousCue,
+                ),
+              ),
+              const Spacer(flex: 40),
+              Expanded(
+                flex: 30,
+                child: GestureDetector(
+                  behavior: HitTestBehavior.opaque,
+                  onDoubleTap: controller.jumpToNextCue,
+                ),
+              ),
+            ],
+          ),
         ),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
+        // Clear of the bottom seek bar / subtitle overlay.
+        const Spacer(flex: 25),
+      ],
+    );
+  }
+}
+
+class _SubtitleOverlay extends ConsumerWidget {
+  const _SubtitleOverlay();
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    final fullscreen = isFullscreen(context);
+    // Non-fullscreen shows subtitles in the list panel below the video, so the
+    // on-video overlay would be redundant.
+    if (!fullscreen) {
+      return const SizedBox.shrink();
+    }
+
+    final session = ref.watch(playerControllerProvider);
+    final cue = session.activeCue;
+    final mode = session.subtitleMode;
+    if (cue == null || mode == SubtitleMode.hidden) {
+      return const SizedBox.shrink();
+    }
+
+    final showEnglish = mode == SubtitleMode.english || mode == SubtitleMode.bilingual;
+    final showChinese = mode == SubtitleMode.chinese || mode == SubtitleMode.bilingual;
+    final englishText = mode == SubtitleMode.english ? cue.original : cue.english;
+
+    const shadows = [Shadow(color: Colors.black, blurRadius: 6, offset: Offset(0, 1))];
+    final lines = <Widget>[];
+    if (showEnglish && englishText.isNotEmpty) {
+      lines.add(Text(
+        englishText,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: fullscreen ? 22 : 18,
+          fontWeight: FontWeight.w600,
+          shadows: shadows,
+        ),
+      ));
+    }
+    if (showChinese && cue.chinese.isNotEmpty) {
+      if (lines.isNotEmpty) {
+        lines.add(const SizedBox(height: 4));
+      }
+      lines.add(Text(
+        cue.chinese,
+        textAlign: TextAlign.center,
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: fullscreen ? 18 : 15,
+          fontWeight: FontWeight.w500,
+          shadows: shadows,
+        ),
+      ));
+    }
+    if (lines.isEmpty) {
+      return const SizedBox.shrink();
+    }
+
+    return Align(
+      alignment: Alignment.bottomCenter,
+      child: Padding(
+        padding: EdgeInsets.only(left: 24, right: 24, bottom: fullscreen ? 96 : 72),
+        child: Row(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.end,
           children: [
-            Text(label, style: Theme.of(context).textTheme.bodySmall),
-            const SizedBox(height: 6),
-            Text(value, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+            Flexible(
+              child: Column(mainAxisSize: MainAxisSize.min, children: lines),
+            ),
+            if (fullscreen) ...[
+              const SizedBox(width: 10),
+              _FullscreenAnalyzeButton(cueIndex: session.activeCueIndex),
+            ],
           ],
+        ),
+      ),
+    );
+  }
+}
+
+class _FullscreenAnalyzeButton extends ConsumerWidget {
+  const _FullscreenAnalyzeButton({required this.cueIndex});
+
+  final int cueIndex;
+
+  @override
+  Widget build(BuildContext context, WidgetRef ref) {
+    return Material(
+      color: Colors.black54,
+      shape: const CircleBorder(),
+      child: InkWell(
+        customBorder: const CircleBorder(),
+        onTap: () async {
+          if (cueIndex < 0) {
+            return;
+          }
+          final controller = ref.read(playerControllerProvider.notifier);
+          controller.selectCue(cueIndex);
+          showModalBottomSheet<void>(
+            context: context,
+            isScrollControlled: true,
+            showDragHandle: false,
+            builder: (_) => const AnalysisBottomSheet(),
+          );
+          await controller.analyzeCurrentCue();
+        },
+        child: const Padding(
+          padding: EdgeInsets.all(8),
+          child: Icon(Icons.error_outline, color: Colors.white, size: 24),
         ),
       ),
     );
@@ -491,13 +574,21 @@ class _MetricTile extends StatelessWidget {
 class _BottomBar extends StatelessWidget {
   const _BottomBar({
     required this.session,
+    required this.onLanguage,
+    required this.onSpeed,
     required this.onToggleLoop,
     required this.onNotebook,
+    required this.onTogglePlayback,
+    required this.onSeek,
   });
 
   final PlayerSession session;
+  final VoidCallback onLanguage;
+  final VoidCallback onSpeed;
   final VoidCallback onToggleLoop;
   final VoidCallback onNotebook;
+  final Future<void> Function() onTogglePlayback;
+  final Future<void> Function(Duration position) onSeek;
 
   @override
   Widget build(BuildContext context) {
@@ -517,27 +608,154 @@ class _BottomBar extends StatelessWidget {
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
         boxShadow: [BoxShadow(color: Color(0x12000000), blurRadius: 24, offset: Offset(0, -8))],
       ),
-      child: Row(
+      child: Column(
+        mainAxisSize: MainAxisSize.min,
         children: [
-          Expanded(
-            child: FilledButton.tonalIcon(
-              onPressed: onToggleLoop,
-              icon: const Icon(Icons.repeat),
-              label: Text(loopLabel),
-            ),
+          Row(
+            children: [
+              Expanded(
+                child: FilledButton.tonalIcon(
+                  onPressed: onLanguage,
+                  icon: const Icon(Icons.translate),
+                  label: const Text('语言'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: FilledButton.tonalIcon(
+                  onPressed: onSpeed,
+                  icon: const Icon(Icons.speed),
+                  label: Text('${_formatSpeed(session.speed)}x'),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: FilledButton.tonalIcon(
+                  onPressed: onToggleLoop,
+                  icon: const Icon(Icons.repeat),
+                  label: Text(loopLabel),
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: FilledButton.icon(
+                  onPressed: onNotebook,
+                  style: FilledButton.styleFrom(backgroundColor: AppColors.sea, foregroundColor: Colors.white),
+                  icon: const Icon(Icons.menu_book_outlined),
+                  label: const Text('生词本'),
+                ),
+              ),
+            ],
           ),
-          const SizedBox(width: 12),
-          Expanded(
-            child: FilledButton.icon(
-              onPressed: onNotebook,
-              style: FilledButton.styleFrom(backgroundColor: AppColors.sea, foregroundColor: Colors.white),
-              icon: const Icon(Icons.menu_book_outlined),
-              label: const Text('生词本'),
-            ),
+          const SizedBox(height: 4),
+          Row(
+            children: [
+              IconButton(
+                onPressed: () => onTogglePlayback(),
+                icon: Icon(session.isPlaying ? Icons.pause : Icons.play_arrow, color: AppColors.ink),
+              ),
+              Text(_formatDuration(session.currentPosition), style: const TextStyle(color: AppColors.ink)),
+              const SizedBox(width: 8),
+              Expanded(
+                child: _AbLoopSlider(session: session, onSeek: onSeek),
+              ),
+              Text(
+                session.totalDuration <= Duration.zero
+                    ? '--:--'
+                    : _formatDuration(session.totalDuration),
+                style: const TextStyle(color: AppColors.ink),
+              ),
+            ],
           ),
         ],
       ),
     );
+  }
+}
+
+class _AbLoopSlider extends StatelessWidget {
+  const _AbLoopSlider({required this.session, required this.onSeek});
+
+  final PlayerSession session;
+  final Future<void> Function(Duration position) onSeek;
+
+  double? _fraction(Duration? point, int totalMs) {
+    if (point == null || totalMs <= 0) {
+      return null;
+    }
+    return (point.inMilliseconds / totalMs).clamp(0.0, 1.0);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final totalMs = session.totalDuration.inMilliseconds;
+    final enabled = totalMs > 0;
+    final value = enabled ? (session.currentPosition.inMilliseconds / totalMs).clamp(0.0, 1.0) : 0.0;
+
+    final aFraction = _fraction(session.aPoint, totalMs);
+    final bFraction = _fraction(session.bPoint, totalMs);
+
+    return Stack(
+      children: [
+        Slider(
+          value: value,
+          onChanged: enabled ? (v) => onSeek(Duration(milliseconds: (v * totalMs).round())) : null,
+        ),
+        // Red A–B loop markers drawn on top of the slider so they are never
+        // hidden behind the track/thumb. Pointer events pass through to the
+        // slider underneath.
+        if (aFraction != null || bFraction != null)
+          Positioned.fill(
+            child: IgnorePointer(
+              child: CustomPaint(
+                painter: _AbLoopPainter(aFraction: aFraction, bFraction: bFraction),
+              ),
+            ),
+          ),
+      ],
+    );
+  }
+}
+
+/// Paints the A–B loop region as a red |—| on top of the slider track.
+///
+/// The slider reserves horizontal padding equal to the larger of the thumb /
+/// overlay radius on each side; [_trackInset] mirrors the Material default so
+/// the markers line up with the actual track.
+class _AbLoopPainter extends CustomPainter {
+  _AbLoopPainter({this.aFraction, this.bFraction});
+
+  final double? aFraction;
+  final double? bFraction;
+
+  static const double _trackInset = 24;
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final trackWidth = (size.width - _trackInset * 2).clamp(0.0, double.infinity);
+    final centerY = size.height / 2;
+    final paint = Paint()..color = Colors.red;
+
+    double x(double fraction) => _trackInset + fraction * trackWidth;
+
+    if (aFraction != null && bFraction != null) {
+      canvas.drawRect(
+        Rect.fromLTRB(x(aFraction!), centerY - 2, x(bFraction!), centerY + 2),
+        paint,
+      );
+    }
+    for (final fraction in [aFraction, bFraction]) {
+      if (fraction == null) {
+        continue;
+      }
+      final cx = x(fraction);
+      canvas.drawRect(Rect.fromLTRB(cx - 1, centerY - 8, cx + 1, centerY + 8), paint);
+    }
+  }
+
+  @override
+  bool shouldRepaint(_AbLoopPainter oldDelegate) {
+    return oldDelegate.aFraction != aFraction || oldDelegate.bFraction != bFraction;
   }
 }
 
@@ -560,9 +778,14 @@ Future<void> _showSpeedPicker(
   return showModalBottomSheet<void>(
     context: context,
     showDragHandle: true,
+    isScrollControlled: true,
     builder: (sheetContext) {
       return SafeArea(
-        child: Column(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(sheetContext).size.height * 0.7,
+          ),
+          child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -573,20 +796,25 @@ Future<void> _showSpeedPicker(
                 style: Theme.of(sheetContext).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
               ),
             ),
-            ..._speedOptions.map((speed) {
-              final selected = (speed - currentSpeed).abs() < 0.001;
-              return ListTile(
-                title: Text('${_formatSpeed(speed)}x'),
-                trailing: selected ? const Icon(Icons.check, color: AppColors.sea) : null,
-                selected: selected,
-                onTap: () {
-                  onSelected(speed);
-                  Navigator.of(sheetContext).pop();
-                },
-              );
-            }),
-            const SizedBox(height: 8),
+            Flexible(
+              child: ListView(
+                padding: const EdgeInsets.only(bottom: 8),
+                children: _speedOptions.map((speed) {
+                  final selected = (speed - currentSpeed).abs() < 0.001;
+                  return ListTile(
+                    title: Text('${_formatSpeed(speed)}x'),
+                    trailing: selected ? const Icon(Icons.check, color: AppColors.sea) : null,
+                    selected: selected,
+                    onTap: () {
+                      onSelected(speed);
+                      Navigator.of(sheetContext).pop();
+                    },
+                  );
+                }).toList(),
+              ),
+            ),
           ],
+          ),
         ),
       );
     },
@@ -601,9 +829,14 @@ Future<void> _showSubtitlePicker(
   return showModalBottomSheet<void>(
     context: context,
     showDragHandle: true,
+    isScrollControlled: true,
     builder: (sheetContext) {
       return SafeArea(
-        child: Column(
+        child: ConstrainedBox(
+          constraints: BoxConstraints(
+            maxHeight: MediaQuery.of(sheetContext).size.height * 0.7,
+          ),
+          child: Column(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
@@ -614,29 +847,30 @@ Future<void> _showSubtitlePicker(
                 style: Theme.of(sheetContext).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
               ),
             ),
-            ...SubtitleMode.values.map((mode) {
-              final selected = mode == currentMode;
-              return ListTile(
-                title: Text(mode.label),
-                trailing: selected ? const Icon(Icons.check, color: AppColors.sea) : null,
-                selected: selected,
-                onTap: () {
-                  onSelected(mode);
-                  Navigator.of(sheetContext).pop();
-                },
-              );
-            }),
-            const SizedBox(height: 8),
+            Flexible(
+              child: ListView(
+                shrinkWrap: true,
+                padding: const EdgeInsets.only(bottom: 8),
+                children: SubtitleMode.values.where((m) => m != SubtitleMode.chinese).map((mode) {
+                  final selected = mode == currentMode;
+                  return ListTile(
+                    title: Text(mode.label),
+                    trailing: selected ? const Icon(Icons.check, color: AppColors.sea) : null,
+                    selected: selected,
+                    onTap: () {
+                      onSelected(mode);
+                      Navigator.of(sheetContext).pop();
+                    },
+                  );
+                }).toList(),
+              ),
+            ),
           ],
+          ),
         ),
       );
     },
   );
-}
-
-String _formatTimestamp(int timestampMs) {
-  final duration = Duration(milliseconds: timestampMs);
-  return _formatDuration(duration);
 }
 
 String _formatDuration(Duration duration) {

@@ -19,6 +19,7 @@ class MediaKitPlayerController {
   late final Player player;
   late final VideoController videoController;
   StreamSubscription<Duration>? _positionSubscription;
+  StreamSubscription<Duration>? _durationSubscription;
 
   void bindPosition(FutureOr<void> Function(Duration position) onPosition) {
     _positionSubscription?.cancel();
@@ -27,8 +28,23 @@ class MediaKitPlayerController {
     });
   }
 
+  void bindDuration(FutureOr<void> Function(Duration duration) onDuration) {
+    _durationSubscription?.cancel();
+    _durationSubscription = player.stream.duration.listen((duration) {
+      unawaited(Future.sync(() => onDuration(duration)));
+    });
+  }
+
   Future<void> openLocalFile(String path) async {
     await player.open(Media(path));
+  }
+
+  Future<void> setSubtitleData(String? srt) async {
+    if (srt == null || srt.trim().isEmpty) {
+      await player.setSubtitleTrack(SubtitleTrack.no());
+      return;
+    }
+    await player.setSubtitleTrack(SubtitleTrack.data(srt));
   }
 
   Future<void> setRate(double rate) async {
@@ -45,6 +61,7 @@ class MediaKitPlayerController {
 
   Future<void> dispose() async {
     await _positionSubscription?.cancel();
+    await _durationSubscription?.cancel();
     await player.dispose();
   }
 }
