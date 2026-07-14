@@ -24,6 +24,32 @@ class VideoLibraryItem {
   final String? mediaPath;
   final String? subtitlePath;
 
+  Map<String, dynamic> toJson() => {
+        'id': id,
+        'title': title,
+        'subtitleLabel': subtitleLabel,
+        'durationLabel': durationLabel,
+        'coverLabel': coverLabel,
+        'words': words,
+        'watchCount': watchCount,
+        'mediaPath': mediaPath,
+        'subtitlePath': subtitlePath,
+      };
+
+  factory VideoLibraryItem.fromJson(Map<String, dynamic> json) {
+    return VideoLibraryItem(
+      id: json['id'] as String,
+      title: json['title'] as String,
+      subtitleLabel: json['subtitleLabel'] as String,
+      durationLabel: json['durationLabel'] as String,
+      coverLabel: json['coverLabel'] as String,
+      words: json['words'] as int,
+      watchCount: json['watchCount'] as int,
+      mediaPath: json['mediaPath'] as String?,
+      subtitlePath: json['subtitlePath'] as String?,
+    );
+  }
+
   VideoLibraryItem copyWith({
     String? id,
     String? title,

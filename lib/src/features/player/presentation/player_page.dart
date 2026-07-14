@@ -660,37 +660,35 @@ class _BottomBar extends StatelessWidget {
           Row(
             children: [
               Expanded(
-                child: FilledButton.tonalIcon(
+                child: _ControlButton(
                   onPressed: onLanguage,
-                  icon: const Icon(Icons.translate),
-                  label: const Text('语言'),
+                  icon: Icons.translate,
+                  label: '语言',
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: FilledButton.tonalIcon(
+                child: _ControlButton(
                   onPressed: onSpeed,
-                  icon: const Icon(Icons.speed),
-                  label: Text('${_formatSpeed(session.speed)}x'),
+                  icon: Icons.speed,
+                  label: '${_formatSpeed(session.speed)}x',
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: FilledButton.tonalIcon(
+                child: _ControlButton(
                   onPressed: onToggleLoop,
-                  icon: const Icon(Icons.repeat),
-                  label: Text(loopLabel),
+                  icon: Icons.repeat,
+                  label: loopLabel,
                 ),
               ),
               const SizedBox(width: 12),
               Expanded(
-                child: FilledButton.icon(
+                child: _ControlButton(
                   onPressed: onNotebook,
-                  style: FilledButton.styleFrom(
-                      backgroundColor: AppColors.sea,
-                      foregroundColor: Colors.white),
-                  icon: const Icon(Icons.menu_book_outlined),
-                  label: const Text('生词本'),
+                  icon: Icons.menu_book_outlined,
+                  label: '生词本',
+                  filled: true,
                 ),
               ),
             ],
@@ -718,6 +716,57 @@ class _BottomBar extends StatelessWidget {
             ],
           ),
         ],
+      ),
+    );
+  }
+}
+
+class _ControlButton extends StatelessWidget {
+  const _ControlButton({
+    required this.onPressed,
+    required this.icon,
+    required this.label,
+    this.filled = false,
+  });
+
+  final VoidCallback onPressed;
+  final IconData icon;
+  final String label;
+  final bool filled;
+
+  @override
+  Widget build(BuildContext context) {
+    final Color background =
+        filled ? AppColors.sea : AppColors.sea.withValues(alpha: 0.12);
+    final Color foreground = filled ? Colors.white : AppColors.sea;
+
+    return Material(
+      color: background,
+      borderRadius: BorderRadius.circular(16),
+      clipBehavior: Clip.antiAlias,
+      child: InkWell(
+        onTap: onPressed,
+        child: Padding(
+          padding: const EdgeInsets.symmetric(vertical: 12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(icon, size: 22, color: foreground),
+              const SizedBox(height: 6),
+              Text(
+                label,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                textAlign: TextAlign.center,
+                style: TextStyle(
+                  color: foreground,
+                  fontSize: 12,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+            ],
+          ),
+        ),
       ),
     );
   }

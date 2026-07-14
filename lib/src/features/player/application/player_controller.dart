@@ -10,6 +10,7 @@ import 'package:path/path.dart' as p;
 import '../../ai/application/analysis_service.dart';
 import '../../ai/domain/analysis_models.dart';
 import '../../ai_settings/application/ai_settings_controller.dart';
+import '../../home/application/home_controller.dart';
 import '../../home/domain/video_library_item.dart';
 import '../../storage/data/notebook_repository.dart';
 import '../domain/player_session.dart';
@@ -102,13 +103,25 @@ class PlayerController extends Notifier<PlayerSession> {
   }
 
   Future<bool> importSubtitle() async {
+    const allowedExtensions = ['srt', 'ass', 'ssa'];
+    // Android's Storage Access Framework has no registered MIME type for
+    // subtitle extensions, so FileType.custom hides/greys them out. Fall back
+    // to FileType.any and validate the extension after picking.
     final result = await FilePicker.platform.pickFiles(
       dialogTitle: '选择外挂字幕（SRT / ASS）',
-      type: FileType.custom,
-      allowedExtensions: const ['srt', 'ass', 'ssa'],
+      type: Platform.isAndroid ? FileType.any : FileType.custom,
+      allowedExtensions: Platform.isAndroid ? null : allowedExtensions,
     );
     final subtitlePath = result?.files.single.path;
     if (subtitlePath == null) {
+      return false;
+    }
+
+    final extension =
+        p.extension(subtitlePath).replaceFirst('.', '').toLowerCase();
+    if (!allowedExtensions.contains(extension)) {
+      state = state.copyWith(
+          errorMessage: '请选择字幕文件（SRT / ASS / SSA）：${p.basename(subtitlePath)}');
       return false;
     }
 
@@ -136,6 +149,16 @@ class PlayerController extends Notifier<PlayerSession> {
       clearError: true,
     );
     await _syncSubtitleTrack();
+
+    // Persist the subtitle choice against the library item so it is restored
+    // on the next launch without re-importing.
+    final mediaPath = state.mediaPath;
+    if (mediaPath != null && mediaPath.isNotEmpty) {
+      await ref.read(homeControllerProvider.notifier).updateSubtitle(
+            mediaPath: mediaPath,
+            subtitlePath: subtitlePath,
+          );
+    }
     return true;
   }
 
