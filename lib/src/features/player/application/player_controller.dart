@@ -35,8 +35,10 @@ Now, you wait for her to drift off...
 现在，你就等着她睡着……
 ''';
 
-final subtitleParserProvider = Provider<SubtitleParser>((ref) => const SubtitleParser());
-final playerControllerProvider = NotifierProvider<PlayerController, PlayerSession>(PlayerController.new);
+final subtitleParserProvider =
+    Provider<SubtitleParser>((ref) => const SubtitleParser());
+final playerControllerProvider =
+    NotifierProvider<PlayerController, PlayerSession>(PlayerController.new);
 
 class PlayerController extends Notifier<PlayerSession> {
   @override
@@ -55,7 +57,9 @@ class PlayerController extends Notifier<PlayerSession> {
       aPoint: null,
       bPoint: null,
       subtitleMode: SubtitleMode.english,
-      currentPosition: cues.isEmpty ? Duration.zero : Duration(milliseconds: cues.first.startMs),
+      currentPosition: cues.isEmpty
+          ? Duration.zero
+          : Duration(milliseconds: cues.first.startMs),
       totalDuration: Duration.zero,
       isAnalyzing: false,
       analysis: null,
@@ -75,7 +79,9 @@ class PlayerController extends Notifier<PlayerSession> {
       title: item?.title ?? state.title,
       cues: cues,
       activeCueIndex: cues.isEmpty ? -1 : 0,
-      currentPosition: cues.isEmpty ? Duration.zero : Duration(milliseconds: cues.first.startMs),
+      currentPosition: cues.isEmpty
+          ? Duration.zero
+          : Duration(milliseconds: cues.first.startMs),
       mediaPath: item?.mediaPath,
       totalDuration: Duration.zero,
       clearAnalysis: true,
@@ -108,14 +114,16 @@ class PlayerController extends Notifier<PlayerSession> {
 
     final content = await _loadSubtitleContent(subtitlePath);
     if (content == null) {
-      state = state.copyWith(errorMessage: '无法读取字幕文件：${p.basename(subtitlePath)}');
+      state =
+          state.copyWith(errorMessage: '无法读取字幕文件：${p.basename(subtitlePath)}');
       return false;
     }
 
     final parser = ref.read(subtitleParserProvider);
     final cues = parser.parse(content);
     if (cues.isEmpty) {
-      state = state.copyWith(errorMessage: '字幕文件为空或格式无法解析：${p.basename(subtitlePath)}');
+      state = state.copyWith(
+          errorMessage: '字幕文件为空或格式无法解析：${p.basename(subtitlePath)}');
       return false;
     }
 
@@ -163,7 +171,8 @@ class PlayerController extends Notifier<PlayerSession> {
         case SubtitleMode.chinese:
           text = cue.chinese;
         case SubtitleMode.bilingual:
-          text = [cue.english, cue.chinese].where((l) => l.isNotEmpty).join('\n');
+          text =
+              [cue.english, cue.chinese].where((l) => l.isNotEmpty).join('\n');
         case SubtitleMode.hidden:
           text = '';
       }
@@ -173,7 +182,8 @@ class PlayerController extends Notifier<PlayerSession> {
       index += 1;
       buffer
         ..writeln(index)
-        ..writeln('${_formatSrtTime(cue.startMs)} --> ${_formatSrtTime(cue.endMs)}')
+        ..writeln(
+            '${_formatSrtTime(cue.startMs)} --> ${_formatSrtTime(cue.endMs)}')
         ..writeln(text)
         ..writeln();
     }
@@ -224,9 +234,11 @@ class PlayerController extends Notifier<PlayerSession> {
       throw StateError('No active subtitle cue');
     }
 
-    state = state.copyWith(isAnalyzing: true, selectedWord: word, clearAnalysis: true);
+    state = state.copyWith(
+        isAnalyzing: true, selectedWord: word, clearAnalysis: true);
     try {
-      final preferCustom = ref.read(aiSettingsControllerProvider).preferCustomModel;
+      final preferCustom =
+          ref.read(aiSettingsControllerProvider).preferCustomModel;
       final service = ref.read(analysisServiceProvider);
       final result = await service.analyzeSubtitleSelection(
         word: word ?? cue.original,
@@ -293,7 +305,8 @@ class PlayerController extends Notifier<PlayerSession> {
       return;
     }
     final withinCurrent = positionMs - cues[currentStartIndex].startMs;
-    final targetIndex = withinCurrent > 1000 ? currentStartIndex : currentStartIndex - 1;
+    final targetIndex =
+        withinCurrent > 1000 ? currentStartIndex : currentStartIndex - 1;
     if (targetIndex < 0) {
       _seekToCue(currentStartIndex);
       return;
@@ -344,7 +357,10 @@ class PlayerController extends Notifier<PlayerSession> {
     if (bytes.length >= 2 && bytes[0] == 0xFE && bytes[1] == 0xFF) {
       return _decodeUtf16(bytes.sublist(2), littleEndian: false);
     }
-    if (bytes.length >= 3 && bytes[0] == 0xEF && bytes[1] == 0xBB && bytes[2] == 0xBF) {
+    if (bytes.length >= 3 &&
+        bytes[0] == 0xEF &&
+        bytes[1] == 0xBB &&
+        bytes[2] == 0xBF) {
       return utf8.decode(bytes.sublist(3), allowMalformed: true);
     }
     // No BOM: try strict UTF-8 first. Chinese subtitle files are frequently
@@ -363,7 +379,9 @@ class PlayerController extends Notifier<PlayerSession> {
   String _decodeUtf16(List<int> bytes, {required bool littleEndian}) {
     final units = <int>[];
     for (var i = 0; i + 1 < bytes.length; i += 2) {
-      units.add(littleEndian ? bytes[i] | (bytes[i + 1] << 8) : (bytes[i] << 8) | bytes[i + 1]);
+      units.add(littleEndian
+          ? bytes[i] | (bytes[i + 1] << 8)
+          : (bytes[i] << 8) | bytes[i + 1]);
     }
     return String.fromCharCodes(units);
   }
@@ -394,13 +412,15 @@ class PlayerController extends Notifier<PlayerSession> {
 
     final cues = state.cues;
     final positionMs = position.inMilliseconds;
-    final nextIndex = cues.indexWhere((cue) => positionMs >= cue.startMs && positionMs <= cue.endMs);
+    final nextIndex = cues.indexWhere(
+        (cue) => positionMs >= cue.startMs && positionMs <= cue.endMs);
     if (nextIndex != -1 && nextIndex != state.activeCueIndex) {
       // Advancing the active cue during playback must not wipe an open
       // analysis — the result belongs to the cue the user tapped, and the
       // analysis sheet watches session.analysis. Clearing happens on
       // selectCue / importSubtitle / when a new analysis starts instead.
-      state = state.copyWith(activeCueIndex: nextIndex, currentPosition: position);
+      state =
+          state.copyWith(activeCueIndex: nextIndex, currentPosition: position);
       return;
     }
     state = state.copyWith(currentPosition: position);

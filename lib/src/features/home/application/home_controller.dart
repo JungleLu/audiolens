@@ -6,7 +6,9 @@ import 'package:path/path.dart' as p;
 
 import '../domain/video_library_item.dart';
 
-final homeControllerProvider = NotifierProvider<HomeController, List<VideoLibraryItem>>(HomeController.new);
+final homeControllerProvider =
+    NotifierProvider<HomeController, List<VideoLibraryItem>>(
+        HomeController.new);
 
 class HomeController extends Notifier<List<VideoLibraryItem>> {
   @override
@@ -55,6 +57,10 @@ class HomeController extends Notifier<List<VideoLibraryItem>> {
     if (normalized.isEmpty) {
       return 'VIDEO';
     }
-    return normalized.split(RegExp(r'\s+')).take(2).map((part) => part.toUpperCase()).join(' ');
+    return normalized
+        .split(RegExp(r'\s+'))
+        .take(2)
+        .map((part) => part.toUpperCase())
+        .join(' ');
   }
 }

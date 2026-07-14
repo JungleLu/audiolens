@@ -14,10 +14,14 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       GoRoute(path: '/', builder: (context, state) => const HomePage()),
       GoRoute(
         path: '/player',
-        builder: (context, state) => PlayerPage(item: state.extra as VideoLibraryItem?),
+        builder: (context, state) =>
+            PlayerPage(item: state.extra as VideoLibraryItem?),
       ),
-      GoRoute(path: '/notebook', builder: (context, state) => const NotebookPage()),
-      GoRoute(path: '/settings/ai', builder: (context, state) => const AiSettingsPage()),
+      GoRoute(
+          path: '/notebook', builder: (context, state) => const NotebookPage()),
+      GoRoute(
+          path: '/settings/ai',
+          builder: (context, state) => const AiSettingsPage()),
     ],
   );
 });

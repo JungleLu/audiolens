@@ -57,13 +57,15 @@ class _AiSettingsPageState extends ConsumerState<AiSettingsPage> {
       model: _model.text.trim(),
       temperature: _temperature,
       maxContext: int.tryParse(_maxContext.text.trim()) ?? 8192,
-      preferCustomModel: ref.read(aiSettingsControllerProvider).preferCustomModel,
+      preferCustomModel:
+          ref.read(aiSettingsControllerProvider).preferCustomModel,
     );
   }
 
   void _snack(String message) {
     if (!mounted) return;
-    ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
+    ScaffoldMessenger.of(context)
+        .showSnackBar(SnackBar(content: Text(message)));
   }
 
   Future<void> _save() async {
@@ -80,7 +82,9 @@ class _AiSettingsPageState extends ConsumerState<AiSettingsPage> {
   Future<void> _testConnection() async {
     setState(() => _testing = true);
     try {
-      await ref.read(analysisServiceProvider).testConnection(_currentFormConfig());
+      await ref
+          .read(analysisServiceProvider)
+          .testConnection(_currentFormConfig());
       _snack('连接成功');
     } catch (error) {
       _snack('连接失败：$error');
@@ -119,7 +123,10 @@ class _AiSettingsPageState extends ConsumerState<AiSettingsPage> {
               children: [
                 Text(
                   '自定义 OpenAI 接口兼容配置',
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleLarge
+                      ?.copyWith(fontWeight: FontWeight.w700),
                 ),
                 const SizedBox(height: 16),
                 TextField(
@@ -143,7 +150,8 @@ class _AiSettingsPageState extends ConsumerState<AiSettingsPage> {
                 const SizedBox(height: 12),
                 Row(
                   children: [
-                    Expanded(child: Text('温度 ${_temperature.toStringAsFixed(1)}')),
+                    Expanded(
+                        child: Text('温度 ${_temperature.toStringAsFixed(1)}')),
                     Expanded(
                       flex: 2,
                       child: Slider(
@@ -151,7 +159,8 @@ class _AiSettingsPageState extends ConsumerState<AiSettingsPage> {
                         min: 0,
                         max: 1,
                         divisions: 10,
-                        onChanged: (value) => setState(() => _temperature = value),
+                        onChanged: (value) =>
+                            setState(() => _temperature = value),
                       ),
                     ),
                   ],
@@ -165,7 +174,9 @@ class _AiSettingsPageState extends ConsumerState<AiSettingsPage> {
                 const SizedBox(height: 12),
                 SwitchListTile(
                   value: config.preferCustomModel,
-                  onChanged: ref.read(aiSettingsControllerProvider.notifier).togglePreferCustom,
+                  onChanged: ref
+                      .read(aiSettingsControllerProvider.notifier)
+                      .togglePreferCustom,
                   title: const Text('优先使用自定义模型'),
                   contentPadding: EdgeInsets.zero,
                 ),
@@ -178,10 +189,14 @@ class _AiSettingsPageState extends ConsumerState<AiSettingsPage> {
                     OutlinedButton(
                       onPressed: _testing ? null : _testConnection,
                       child: _testing
-                          ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                          ? const SizedBox(
+                              width: 16,
+                              height: 16,
+                              child: CircularProgressIndicator(strokeWidth: 2))
                           : const Text('测试连接'),
                     ),
-                    TextButton(onPressed: _restoreDefaults, child: const Text('恢复默认')),
+                    TextButton(
+                        onPressed: _restoreDefaults, child: const Text('恢复默认')),
                   ],
                 ),
               ],

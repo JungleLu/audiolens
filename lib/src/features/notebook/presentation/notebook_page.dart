@@ -72,7 +72,10 @@ class _NotebookCardState extends ConsumerState<_NotebookCard> {
               Expanded(
                 child: Text(
                   entry.word,
-                  style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+                  style: Theme.of(context)
+                      .textTheme
+                      .titleLarge
+                      ?.copyWith(fontWeight: FontWeight.w700),
                 ),
               ),
               Text(entry.timestampLabel),
@@ -91,7 +94,10 @@ class _NotebookCardState extends ConsumerState<_NotebookCard> {
             const SizedBox(height: 6),
             Text(
               entry.analysis.sentence.translation,
-              style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.black54),
+              style: Theme.of(context)
+                  .textTheme
+                  .bodyMedium
+                  ?.copyWith(color: Colors.black54),
             ),
           ],
           const SizedBox(height: 14),
@@ -107,7 +113,10 @@ class _NotebookCardState extends ConsumerState<_NotebookCard> {
                     }
                   },
             icon: _reanalyzing
-                ? const SizedBox(width: 16, height: 16, child: CircularProgressIndicator(strokeWidth: 2))
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2))
                 : const Icon(Icons.refresh),
             label: Text(_reanalyzing ? '解析中...' : '重新解析'),
           ),

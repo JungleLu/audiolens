@@ -25,7 +25,8 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
   @override
   void initState() {
     super.initState();
-    Future.microtask(() => ref.read(playerControllerProvider.notifier).loadVideo(widget.item));
+    Future.microtask(() =>
+        ref.read(playerControllerProvider.notifier).loadVideo(widget.item));
   }
 
   @override
@@ -71,13 +72,17 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
                             Expanded(
                               child: Text(
                                 session.title,
-                                style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+                                style: Theme.of(context)
+                                    .textTheme
+                                    .titleLarge
+                                    ?.copyWith(fontWeight: FontWeight.w700),
                               ),
                             ),
                             IconButton(
                               tooltip: '导入字幕',
                               onPressed: () async {
-                                final loaded = await controller.importSubtitle();
+                                final loaded =
+                                    await controller.importSubtitle();
                                 if (loaded && context.mounted) {
                                   ScaffoldMessenger.of(context).showSnackBar(
                                     const SnackBar(content: Text('字幕已导入')),
@@ -92,12 +97,16 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
                           const SizedBox(height: 12),
                           Text(
                             session.errorMessage!,
-                            style: Theme.of(context).textTheme.bodyMedium?.copyWith(color: Colors.red.shade700),
+                            style: Theme.of(context)
+                                .textTheme
+                                .bodyMedium
+                                ?.copyWith(color: Colors.red.shade700),
                           ),
                         ],
                         const SizedBox(height: 16),
                         Expanded(
-                          child: _SubtitlePanel(session: session, controller: controller),
+                          child: _SubtitlePanel(
+                              session: session, controller: controller),
                         ),
                       ],
                     ),
@@ -171,7 +180,8 @@ class _SubtitlePanelState extends State<_SubtitlePanel> {
       if (!mounted) {
         return;
       }
-      final targetCtx = _itemKeys[widget.session.activeCueIndex]?.currentContext;
+      final targetCtx =
+          _itemKeys[widget.session.activeCueIndex]?.currentContext;
       if (targetCtx != null) {
         Scrollable.ensureVisible(
           targetCtx,
@@ -211,80 +221,102 @@ class _SubtitlePanelState extends State<_SubtitlePanel> {
       children: [
         Text(
           '字幕列表',
-          style: Theme.of(context).textTheme.labelLarge?.copyWith(color: AppColors.moss),
+          style: Theme.of(context)
+              .textTheme
+              .labelLarge
+              ?.copyWith(color: AppColors.moss),
         ),
         const SizedBox(height: 10),
         Expanded(
           child: SingleChildScrollView(
             controller: _scrollController,
             child: Column(
-          children: session.cues.asMap().entries.map((entry) {
-            final index = entry.key;
-            final cue = entry.value;
-            final selected = index == session.activeCueIndex;
-            final key = _itemKeys.putIfAbsent(index, GlobalKey.new);
+              children: session.cues.asMap().entries.map((entry) {
+                final index = entry.key;
+                final cue = entry.value;
+                final selected = index == session.activeCueIndex;
+                final key = _itemKeys.putIfAbsent(index, GlobalKey.new);
 
-            final showEnglish = mode == SubtitleMode.english || mode == SubtitleMode.bilingual;
-            final showChinese = mode == SubtitleMode.chinese || mode == SubtitleMode.bilingual;
-            final englishText = mode == SubtitleMode.english ? cue.original : cue.english;
-            const activeColor = AppColors.sea;
+                final showEnglish = mode == SubtitleMode.english ||
+                    mode == SubtitleMode.bilingual;
+                final showChinese = mode == SubtitleMode.chinese ||
+                    mode == SubtitleMode.bilingual;
+                final englishText =
+                    mode == SubtitleMode.english ? cue.original : cue.english;
+                const activeColor = AppColors.sea;
 
-            return Container(
-              key: key,
-              margin: const EdgeInsets.only(bottom: 6),
-              decoration: BoxDecoration(
-                color: selected ? const Color(0xFFEAF1F6) : null,
-                borderRadius: BorderRadius.circular(14),
-              ),
-              child: InkWell(
-                borderRadius: BorderRadius.circular(14),
-                onTap: () => widget.controller.selectCue(index),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 10),
-                  child: Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Expanded(
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            if (showEnglish && englishText.isNotEmpty)
-                              Text(
-                                englishText,
-                                style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                                      color: selected ? activeColor : AppColors.ink,
-                                      fontWeight: selected ? FontWeight.w700 : FontWeight.w500,
-                                    ),
-                              ),
-                            if (showChinese && cue.chinese.isNotEmpty) ...[
-                              if (showEnglish && englishText.isNotEmpty) const SizedBox(height: 4),
-                              Text(
-                                cue.chinese,
-                                style: Theme.of(context).textTheme.bodyMedium?.copyWith(
-                                      color: selected ? activeColor : AppColors.moss,
-                                      fontWeight: selected ? FontWeight.w600 : FontWeight.w400,
-                                    ),
-                              ),
-                            ],
-                          ],
-                        ),
-                      ),
-                      const SizedBox(width: 8),
-                      IconButton(
-                        tooltip: 'AI 解析该句',
-                        visualDensity: VisualDensity.compact,
-                        onPressed: () => _analyze(index),
-                        icon: Icon(
-                          Icons.error_outline,
-                          color: selected ? activeColor : AppColors.moss,
-                        ),
-                      ),
-                    ],
+                return Container(
+                  key: key,
+                  margin: const EdgeInsets.only(bottom: 6),
+                  decoration: BoxDecoration(
+                    color: selected ? const Color(0xFFEAF1F6) : null,
+                    borderRadius: BorderRadius.circular(14),
                   ),
-                ),
-              ),
-            );
-          }).toList(),
+                  child: InkWell(
+                    borderRadius: BorderRadius.circular(14),
+                    onTap: () => widget.controller.selectCue(index),
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(
+                          horizontal: 12, vertical: 10),
+                      child: Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: [
+                          Expanded(
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                if (showEnglish && englishText.isNotEmpty)
+                                  Text(
+                                    englishText,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodyLarge
+                                        ?.copyWith(
+                                          color: selected
+                                              ? activeColor
+                                              : AppColors.ink,
+                                          fontWeight: selected
+                                              ? FontWeight.w700
+                                              : FontWeight.w500,
+                                        ),
+                                  ),
+                                if (showChinese && cue.chinese.isNotEmpty) ...[
+                                  if (showEnglish && englishText.isNotEmpty)
+                                    const SizedBox(height: 4),
+                                  Text(
+                                    cue.chinese,
+                                    style: Theme.of(context)
+                                        .textTheme
+                                        .bodyMedium
+                                        ?.copyWith(
+                                          color: selected
+                                              ? activeColor
+                                              : AppColors.moss,
+                                          fontWeight: selected
+                                              ? FontWeight.w600
+                                              : FontWeight.w400,
+                                        ),
+                                  ),
+                                ],
+                              ],
+                            ),
+                          ),
+                          const SizedBox(width: 8),
+                          IconButton(
+                            tooltip: 'AI 解析该句',
+                            visualDensity: VisualDensity.compact,
+                            onPressed: () => _analyze(index),
+                            icon: Icon(
+                              Icons.error_outline,
+                              color: selected ? activeColor : AppColors.moss,
+                            ),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                );
+              }).toList(),
             ),
           ),
         ),
@@ -337,7 +369,8 @@ class _PlayerHero extends StatelessWidget {
                   controls: _immersiveVideoControls,
                   // Native subtitles aren't tappable, so we hide them and render
                   // our own overlay (with a fullscreen AI-analyze button) instead.
-                  subtitleViewConfiguration: const SubtitleViewConfiguration(visible: false),
+                  subtitleViewConfiguration:
+                      const SubtitleViewConfiguration(visible: false),
                 ),
               ),
             ),
@@ -346,7 +379,9 @@ class _PlayerHero extends StatelessWidget {
               left: 12,
               child: IconButton(
                 onPressed: onBack,
-                style: IconButton.styleFrom(backgroundColor: Colors.black26, foregroundColor: Colors.white),
+                style: IconButton.styleFrom(
+                    backgroundColor: Colors.black26,
+                    foregroundColor: Colors.white),
                 icon: const Icon(Icons.arrow_back),
               ),
             ),
@@ -372,7 +407,8 @@ class _SpeedControlButton extends ConsumerWidget {
       ),
       icon: Text(
         '${_formatSpeed(speed)}x',
-        style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15),
+        style: const TextStyle(
+            color: Colors.white, fontWeight: FontWeight.w700, fontSize: 15),
       ),
     );
   }
@@ -383,7 +419,8 @@ class _SubtitleControlButton extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final mode = ref.watch(playerControllerProvider.select((s) => s.subtitleMode));
+    final mode =
+        ref.watch(playerControllerProvider.select((s) => s.subtitleMode));
     final controller = ref.read(playerControllerProvider.notifier);
     return MaterialCustomButton(
       onPressed: () => _showSubtitlePicker(
@@ -477,11 +514,16 @@ class _SubtitleOverlay extends ConsumerWidget {
       return const SizedBox.shrink();
     }
 
-    final showEnglish = mode == SubtitleMode.english || mode == SubtitleMode.bilingual;
-    final showChinese = mode == SubtitleMode.chinese || mode == SubtitleMode.bilingual;
-    final englishText = mode == SubtitleMode.english ? cue.original : cue.english;
+    final showEnglish =
+        mode == SubtitleMode.english || mode == SubtitleMode.bilingual;
+    final showChinese =
+        mode == SubtitleMode.chinese || mode == SubtitleMode.bilingual;
+    final englishText =
+        mode == SubtitleMode.english ? cue.original : cue.english;
 
-    const shadows = [Shadow(color: Colors.black, blurRadius: 6, offset: Offset(0, 1))];
+    const shadows = [
+      Shadow(color: Colors.black, blurRadius: 6, offset: Offset(0, 1))
+    ];
     final lines = <Widget>[];
     if (showEnglish && englishText.isNotEmpty) {
       lines.add(Text(
@@ -517,7 +559,8 @@ class _SubtitleOverlay extends ConsumerWidget {
     return Align(
       alignment: Alignment.bottomCenter,
       child: Padding(
-        padding: EdgeInsets.only(left: 24, right: 24, bottom: fullscreen ? 96 : 72),
+        padding:
+            EdgeInsets.only(left: 24, right: 24, bottom: fullscreen ? 96 : 72),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.end,
@@ -606,7 +649,10 @@ class _BottomBar extends StatelessWidget {
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
-        boxShadow: [BoxShadow(color: Color(0x12000000), blurRadius: 24, offset: Offset(0, -8))],
+        boxShadow: [
+          BoxShadow(
+              color: Color(0x12000000), blurRadius: 24, offset: Offset(0, -8))
+        ],
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
@@ -640,7 +686,9 @@ class _BottomBar extends StatelessWidget {
               Expanded(
                 child: FilledButton.icon(
                   onPressed: onNotebook,
-                  style: FilledButton.styleFrom(backgroundColor: AppColors.sea, foregroundColor: Colors.white),
+                  style: FilledButton.styleFrom(
+                      backgroundColor: AppColors.sea,
+                      foregroundColor: Colors.white),
                   icon: const Icon(Icons.menu_book_outlined),
                   label: const Text('生词本'),
                 ),
@@ -652,9 +700,11 @@ class _BottomBar extends StatelessWidget {
             children: [
               IconButton(
                 onPressed: () => onTogglePlayback(),
-                icon: Icon(session.isPlaying ? Icons.pause : Icons.play_arrow, color: AppColors.ink),
+                icon: Icon(session.isPlaying ? Icons.pause : Icons.play_arrow,
+                    color: AppColors.ink),
               ),
-              Text(_formatDuration(session.currentPosition), style: const TextStyle(color: AppColors.ink)),
+              Text(_formatDuration(session.currentPosition),
+                  style: const TextStyle(color: AppColors.ink)),
               const SizedBox(width: 8),
               Expanded(
                 child: _AbLoopSlider(session: session, onSeek: onSeek),
@@ -690,7 +740,9 @@ class _AbLoopSlider extends StatelessWidget {
   Widget build(BuildContext context) {
     final totalMs = session.totalDuration.inMilliseconds;
     final enabled = totalMs > 0;
-    final value = enabled ? (session.currentPosition.inMilliseconds / totalMs).clamp(0.0, 1.0) : 0.0;
+    final value = enabled
+        ? (session.currentPosition.inMilliseconds / totalMs).clamp(0.0, 1.0)
+        : 0.0;
 
     final aFraction = _fraction(session.aPoint, totalMs);
     final bFraction = _fraction(session.bPoint, totalMs);
@@ -699,7 +751,9 @@ class _AbLoopSlider extends StatelessWidget {
       children: [
         Slider(
           value: value,
-          onChanged: enabled ? (v) => onSeek(Duration(milliseconds: (v * totalMs).round())) : null,
+          onChanged: enabled
+              ? (v) => onSeek(Duration(milliseconds: (v * totalMs).round()))
+              : null,
         ),
         // Red A–B loop markers drawn on top of the slider so they are never
         // hidden behind the track/thumb. Pointer events pass through to the
@@ -708,7 +762,8 @@ class _AbLoopSlider extends StatelessWidget {
           Positioned.fill(
             child: IgnorePointer(
               child: CustomPaint(
-                painter: _AbLoopPainter(aFraction: aFraction, bFraction: bFraction),
+                painter:
+                    _AbLoopPainter(aFraction: aFraction, bFraction: bFraction),
               ),
             ),
           ),
@@ -732,7 +787,8 @@ class _AbLoopPainter extends CustomPainter {
 
   @override
   void paint(Canvas canvas, Size size) {
-    final trackWidth = (size.width - _trackInset * 2).clamp(0.0, double.infinity);
+    final trackWidth =
+        (size.width - _trackInset * 2).clamp(0.0, double.infinity);
     final centerY = size.height / 2;
     final paint = Paint()..color = Colors.red;
 
@@ -749,18 +805,34 @@ class _AbLoopPainter extends CustomPainter {
         continue;
       }
       final cx = x(fraction);
-      canvas.drawRect(Rect.fromLTRB(cx - 1, centerY - 8, cx + 1, centerY + 8), paint);
+      canvas.drawRect(
+          Rect.fromLTRB(cx - 1, centerY - 8, cx + 1, centerY + 8), paint);
     }
   }
 
   @override
   bool shouldRepaint(_AbLoopPainter oldDelegate) {
-    return oldDelegate.aFraction != aFraction || oldDelegate.bFraction != bFraction;
+    return oldDelegate.aFraction != aFraction ||
+        oldDelegate.bFraction != bFraction;
   }
 }
 
 const List<double> _speedOptions = [
-  0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6, 1.8, 2.0, 2.2, 2.4, 2.6, 2.8, 3.0,
+  0.2,
+  0.4,
+  0.6,
+  0.8,
+  1.0,
+  1.2,
+  1.4,
+  1.6,
+  1.8,
+  2.0,
+  2.2,
+  2.4,
+  2.6,
+  2.8,
+  3.0,
 ];
 
 String _formatSpeed(double speed) {
@@ -786,34 +858,39 @@ Future<void> _showSpeedPicker(
             maxHeight: MediaQuery.of(sheetContext).size.height * 0.7,
           ),
           child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
-              child: Text(
-                '播放倍速',
-                style: Theme.of(sheetContext).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+                child: Text(
+                  '播放倍速',
+                  style: Theme.of(sheetContext)
+                      .textTheme
+                      .titleLarge
+                      ?.copyWith(fontWeight: FontWeight.w700),
+                ),
               ),
-            ),
-            Flexible(
-              child: ListView(
-                padding: const EdgeInsets.only(bottom: 8),
-                children: _speedOptions.map((speed) {
-                  final selected = (speed - currentSpeed).abs() < 0.001;
-                  return ListTile(
-                    title: Text('${_formatSpeed(speed)}x'),
-                    trailing: selected ? const Icon(Icons.check, color: AppColors.sea) : null,
-                    selected: selected,
-                    onTap: () {
-                      onSelected(speed);
-                      Navigator.of(sheetContext).pop();
-                    },
-                  );
-                }).toList(),
+              Flexible(
+                child: ListView(
+                  padding: const EdgeInsets.only(bottom: 8),
+                  children: _speedOptions.map((speed) {
+                    final selected = (speed - currentSpeed).abs() < 0.001;
+                    return ListTile(
+                      title: Text('${_formatSpeed(speed)}x'),
+                      trailing: selected
+                          ? const Icon(Icons.check, color: AppColors.sea)
+                          : null,
+                      selected: selected,
+                      onTap: () {
+                        onSelected(speed);
+                        Navigator.of(sheetContext).pop();
+                      },
+                    );
+                  }).toList(),
+                ),
               ),
-            ),
-          ],
+            ],
           ),
         ),
       );
@@ -837,35 +914,42 @@ Future<void> _showSubtitlePicker(
             maxHeight: MediaQuery.of(sheetContext).size.height * 0.7,
           ),
           child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            Padding(
-              padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
-              child: Text(
-                '字幕模式',
-                style: Theme.of(sheetContext).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: [
+              Padding(
+                padding: const EdgeInsets.fromLTRB(20, 4, 20, 12),
+                child: Text(
+                  '字幕模式',
+                  style: Theme.of(sheetContext)
+                      .textTheme
+                      .titleLarge
+                      ?.copyWith(fontWeight: FontWeight.w700),
+                ),
               ),
-            ),
-            Flexible(
-              child: ListView(
-                shrinkWrap: true,
-                padding: const EdgeInsets.only(bottom: 8),
-                children: SubtitleMode.values.where((m) => m != SubtitleMode.chinese).map((mode) {
-                  final selected = mode == currentMode;
-                  return ListTile(
-                    title: Text(mode.label),
-                    trailing: selected ? const Icon(Icons.check, color: AppColors.sea) : null,
-                    selected: selected,
-                    onTap: () {
-                      onSelected(mode);
-                      Navigator.of(sheetContext).pop();
-                    },
-                  );
-                }).toList(),
+              Flexible(
+                child: ListView(
+                  shrinkWrap: true,
+                  padding: const EdgeInsets.only(bottom: 8),
+                  children: SubtitleMode.values
+                      .where((m) => m != SubtitleMode.chinese)
+                      .map((mode) {
+                    final selected = mode == currentMode;
+                    return ListTile(
+                      title: Text(mode.label),
+                      trailing: selected
+                          ? const Icon(Icons.check, color: AppColors.sea)
+                          : null,
+                      selected: selected,
+                      onTap: () {
+                        onSelected(mode);
+                        Navigator.of(sheetContext).pop();
+                      },
+                    );
+                  }).toList(),
+                ),
               ),
-            ),
-          ],
+            ],
           ),
         ),
       );

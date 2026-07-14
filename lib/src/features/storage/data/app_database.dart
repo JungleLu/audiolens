@@ -36,7 +36,9 @@ class AppDatabase extends _$AppDatabase {
   int get schemaVersion => 1;
 
   Future<List<NotebookRow>> allEntries() {
-    return (select(notebookEntries)..orderBy([(t) => OrderingTerm.desc(t.createdAt)])).get();
+    return (select(notebookEntries)
+          ..orderBy([(t) => OrderingTerm.desc(t.createdAt)]))
+        .get();
   }
 
   Future<void> upsertEntry(NotebookEntriesCompanion entry) {

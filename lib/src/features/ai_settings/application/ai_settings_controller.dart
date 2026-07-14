@@ -45,7 +45,8 @@ class AiSettingsController extends Notifier<AiConfig> {
       model: prefs.getString(_kModel) ?? _defaultConfig.model,
       temperature: prefs.getDouble(_kTemperature) ?? _defaultConfig.temperature,
       maxContext: prefs.getInt(_kMaxContext) ?? _defaultConfig.maxContext,
-      preferCustomModel: prefs.getBool(_kPreferCustom) ?? _defaultConfig.preferCustomModel,
+      preferCustomModel:
+          prefs.getBool(_kPreferCustom) ?? _defaultConfig.preferCustomModel,
     );
   }
 

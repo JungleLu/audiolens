@@ -68,7 +68,8 @@ class SentenceAnalysis {
         'paraphrases': paraphrases,
       };
 
-  factory SentenceAnalysis.fromJson(Map<String, dynamic> json) => SentenceAnalysis(
+  factory SentenceAnalysis.fromJson(Map<String, dynamic> json) =>
+      SentenceAnalysis(
         sentence: (json['sentence'] ?? '').toString(),
         translation: (json['translation'] ?? '').toString(),
         structure: _stringList(json['structure']),
@@ -113,7 +114,10 @@ class AnalysisResult {
 
 List<String> _stringList(dynamic value) {
   if (value is List) {
-    return value.map((item) => item.toString()).where((item) => item.isNotEmpty).toList();
+    return value
+        .map((item) => item.toString())
+        .where((item) => item.isNotEmpty)
+        .toList();
   }
   return const [];
 }

@@ -1,5 +1,9 @@
 class SubtitleToken {
-  const SubtitleToken({required this.text, required this.isWord, required this.start, required this.end});
+  const SubtitleToken(
+      {required this.text,
+      required this.isWord,
+      required this.start,
+      required this.end});
 
   final String text;
   final bool isWord;

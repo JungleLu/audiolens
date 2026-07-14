@@ -20,7 +20,8 @@ class SubtitleParser {
     final cues = <SubtitleCue>[];
 
     for (final block in blocks) {
-      final lines = block.split('\n').where((line) => line.trim().isNotEmpty).toList();
+      final lines =
+          block.split('\n').where((line) => line.trim().isNotEmpty).toList();
       if (lines.length < 3) {
         continue;
       }
@@ -68,7 +69,11 @@ class SubtitleParser {
       }
 
       if (trimmed.toLowerCase().startsWith('format:')) {
-        final columns = trimmed.substring('format:'.length).split(',').map((c) => c.trim().toLowerCase()).toList();
+        final columns = trimmed
+            .substring('format:'.length)
+            .split(',')
+            .map((c) => c.trim().toLowerCase())
+            .toList();
         final startIndex = columns.indexOf('start');
         final endIndex = columns.indexOf('end');
         final textIndex = columns.indexOf('text');
@@ -93,7 +98,8 @@ class SubtitleParser {
         continue;
       }
 
-      final segments = text.split('\n').where((s) => s.trim().isNotEmpty).toList();
+      final segments =
+          text.split('\n').where((s) => s.trim().isNotEmpty).toList();
       final (english, chinese) = _splitLanguages(segments);
 
       cues.add(
@@ -170,7 +176,9 @@ class SubtitleParser {
     final minute = int.tryParse(parts[1]) ?? 0;
     final secParts = parts[2].split('.');
     final second = int.tryParse(secParts[0]) ?? 0;
-    final centi = secParts.length > 1 ? (int.tryParse(secParts[1].padRight(2, '0').substring(0, 2)) ?? 0) : 0;
+    final centi = secParts.length > 1
+        ? (int.tryParse(secParts[1].padRight(2, '0').substring(0, 2)) ?? 0)
+        : 0;
     return ((((hour * 60) + minute) * 60) + second) * 1000 + centi * 10;
   }
 

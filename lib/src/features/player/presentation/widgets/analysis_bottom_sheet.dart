@@ -40,7 +40,8 @@ class AnalysisBottomSheet extends ConsumerWidget {
                 style: Theme.of(context).textTheme.titleMedium,
               ),
             ] else if (analysis != null) ...[
-              _AnalysisView(analysis: analysis, isSentence: session.selectedWord == null),
+              _AnalysisView(
+                  analysis: analysis, isSentence: session.selectedWord == null),
               const SizedBox(height: 18),
               SizedBox(
                 width: double.infinity,
@@ -63,7 +64,10 @@ class AnalysisBottomSheet extends ConsumerWidget {
             ] else ...[
               Text(
                 '尚未生成解析',
-                style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+                style: Theme.of(context)
+                    .textTheme
+                    .titleLarge
+                    ?.copyWith(fontWeight: FontWeight.w700),
               ),
               const SizedBox(height: 12),
               const Text('点击字幕中的单词或整句后，这里会展示统一结构的解析结果。'),
@@ -94,12 +98,18 @@ class _AnalysisView extends StatelessWidget {
       children: [
         Text(
           s.sentence,
-          style: Theme.of(context).textTheme.titleLarge?.copyWith(fontWeight: FontWeight.w700),
+          style: Theme.of(context)
+              .textTheme
+              .titleLarge
+              ?.copyWith(fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 6),
         Text(
           s.translation,
-          style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: AppColors.sea),
+          style: Theme.of(context)
+              .textTheme
+              .bodyLarge
+              ?.copyWith(color: AppColors.sea),
         ),
         const SizedBox(height: 18),
         _block(
@@ -130,18 +140,25 @@ class _AnalysisView extends StatelessWidget {
       children: [
         Text(
           w.word,
-          style: Theme.of(context).textTheme.headlineSmall?.copyWith(fontWeight: FontWeight.w700),
+          style: Theme.of(context)
+              .textTheme
+              .headlineSmall
+              ?.copyWith(fontWeight: FontWeight.w700),
         ),
         const SizedBox(height: 6),
         Text(
           '英 ${w.phoneticUk}   ·   美 ${w.phoneticUs}   ·   ${w.partOfSpeech}',
-          style: Theme.of(context).textTheme.bodyLarge?.copyWith(color: AppColors.sea),
+          style: Theme.of(context)
+              .textTheme
+              .bodyLarge
+              ?.copyWith(color: AppColors.sea),
         ),
         const SizedBox(height: 18),
         _block(
           context,
           title: '单词区',
-          body: '释义：${w.meaning}\n搭配：${w.collocations.join(' / ')}\n词根词缀：${w.wordRoot}',
+          body:
+              '释义：${w.meaning}\n搭配：${w.collocations.join(' / ')}\n词根词缀：${w.wordRoot}',
         ),
         const SizedBox(height: 14),
         _block(
@@ -154,7 +171,8 @@ class _AnalysisView extends StatelessWidget {
     );
   }
 
-  Widget _block(BuildContext context, {required String title, required String body}) {
+  Widget _block(BuildContext context,
+      {required String title, required String body}) {
     return Container(
       width: double.infinity,
       padding: const EdgeInsets.all(16),
@@ -165,7 +183,11 @@ class _AnalysisView extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          Text(title, style: Theme.of(context).textTheme.titleMedium?.copyWith(fontWeight: FontWeight.w700)),
+          Text(title,
+              style: Theme.of(context)
+                  .textTheme
+                  .titleMedium
+                  ?.copyWith(fontWeight: FontWeight.w700)),
           const SizedBox(height: 8),
           Text(body, style: Theme.of(context).textTheme.bodyMedium),
         ],

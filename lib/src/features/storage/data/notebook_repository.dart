@@ -24,7 +24,10 @@ class NotebookRepository {
 
   /// Stable identity for a saved card so re-saving the same word at the same
   /// timestamp of the same video updates in place instead of duplicating.
-  static String buildId({required String videoId, required int timestampMs, required String word}) {
+  static String buildId(
+      {required String videoId,
+      required int timestampMs,
+      required String word}) {
     return '${videoId}_${timestampMs}_${word.toLowerCase().trim()}';
   }
 
@@ -33,8 +36,12 @@ class NotebookRepository {
     return rows.map(_toEntry).toList();
   }
 
-  Future<void> saveAnalysis({required AnalysisResult entry, required String videoId}) async {
-    final id = buildId(videoId: videoId, timestampMs: entry.timestampMs, word: entry.word.word);
+  Future<void> saveAnalysis(
+      {required AnalysisResult entry, required String videoId}) async {
+    final id = buildId(
+        videoId: videoId,
+        timestampMs: entry.timestampMs,
+        word: entry.word.word);
     await _db.upsertEntry(
       NotebookEntriesCompanion.insert(
         id: id,
@@ -55,7 +62,8 @@ class NotebookRepository {
   NotebookEntry _toEntry(NotebookRow row) {
     AnalysisResult analysis;
     try {
-      analysis = AnalysisResult.fromJson(jsonDecode(row.analysisJson) as Map<String, dynamic>);
+      analysis = AnalysisResult.fromJson(
+          jsonDecode(row.analysisJson) as Map<String, dynamic>);
     } catch (_) {
       analysis = AnalysisResult(
         source: row.source,

@@ -9,7 +9,8 @@ import '../domain/ai_mode.dart';
 import '../domain/analysis_models.dart';
 import 'prompt_templates.dart';
 
-final analysisServiceProvider = Provider<AnalysisService>((ref) => AnalysisService(ref));
+final analysisServiceProvider =
+    Provider<AnalysisService>((ref) => AnalysisService(ref));
 
 class AnalysisService {
   AnalysisService(this._ref, {Dio? dio})
@@ -36,7 +37,8 @@ class AnalysisService {
     // Wait for the persisted AI config to hydrate; otherwise the first request
     // after startup reads the default endpoint (api.openai.com) and times out.
     await _ref.read(aiSettingsControllerProvider.notifier).ready;
-    final mode = await _chooseMode(hasNetwork: hasNetwork, preferCustom: preferCustom);
+    final mode =
+        await _chooseMode(hasNetwork: hasNetwork, preferCustom: preferCustom);
     switch (mode) {
       case AiMode.customProvider:
         return _analyzeWithOpenAiCompatible(
@@ -48,7 +50,11 @@ class AnalysisService {
         );
       case AiMode.cloudEnhanced:
       case AiMode.offlineFallback:
-        return _buildOfflineFallback(word: word, sentence: sentence, timestampMs: timestampMs, source: mode.name);
+        return _buildOfflineFallback(
+            word: word,
+            sentence: sentence,
+            timestampMs: timestampMs,
+            source: mode.name);
     }
   }
 
@@ -80,10 +86,12 @@ class AnalysisService {
     }
   }
 
-  Future<AiMode> _chooseMode({required bool hasNetwork, required bool preferCustom}) async {
+  Future<AiMode> _chooseMode(
+      {required bool hasNetwork, required bool preferCustom}) async {
     final config = _ref.read(aiSettingsControllerProvider);
     // API Key is optional so local models without auth can be used.
-    final hasCustomConfig = config.baseUrl.trim().isNotEmpty && config.model.trim().isNotEmpty;
+    final hasCustomConfig =
+        config.baseUrl.trim().isNotEmpty && config.model.trim().isNotEmpty;
     // Use the configured endpoint whenever one exists — the `preferCustom`
     // toggle only decides ordering, not whether the real model is reachable.
     // Without this, a configured model is never called and every analysis
@@ -102,8 +110,10 @@ class AnalysisService {
     required String fallbackSource,
   }) async {
     try {
-      final response = await _postChatCompletion(config: config, word: word, sentence: sentence);
-      final rawContent = (((response.data ?? const {})['choices'] as List?)?.first as Map?)?['message']?['content'];
+      final response = await _postChatCompletion(
+          config: config, word: word, sentence: sentence);
+      final rawContent = (((response.data ?? const {})['choices'] as List?)
+          ?.first as Map?)?['message']?['content'];
       if (rawContent is! String || rawContent.trim().isEmpty) {
         throw const FormatException('模型未返回可解析内容');
       }
@@ -111,7 +121,8 @@ class AnalysisService {
       if (jsonMap == null) {
         throw const FormatException('模型未返回可解析的 JSON');
       }
-      return _fromJson(jsonMap, timestampMs: timestampMs, source: 'customProvider');
+      return _fromJson(jsonMap,
+          timestampMs: timestampMs, source: 'customProvider');
     } catch (error) {
       return _buildOfflineFallback(
         word: word,
@@ -138,12 +149,17 @@ class AnalysisService {
       'temperature': config.temperature,
       'messages': [
         {'role': 'system', 'content': PromptTemplates.analysisSystemPrompt},
-        {'role': 'user', 'content': PromptTemplates.buildAnalysisUserPrompt(word: word, sentence: sentence)},
+        {
+          'role': 'user',
+          'content': PromptTemplates.buildAnalysisUserPrompt(
+              word: word, sentence: sentence)
+        },
       ],
       'response_format': {'type': 'json_object'},
     };
     try {
-      return await _dio.post<Map<String, dynamic>>(url, options: options, data: data);
+      return await _dio.post<Map<String, dynamic>>(url,
+          options: options, data: data);
     } on DioException catch (error) {
       if (!_isTimeout(error)) rethrow;
       return _dio.post<Map<String, dynamic>>(url, options: options, data: data);
@@ -206,12 +222,15 @@ class AnalysisService {
     }
   }
 
-  AnalysisResult _fromJson(Map<String, dynamic> json, {required int timestampMs, required String source}) {
+  AnalysisResult _fromJson(Map<String, dynamic> json,
+      {required int timestampMs, required String source}) {
     return AnalysisResult(
       source: source,
       timestampMs: timestampMs,
-      word: WordAnalysis.fromJson((json['word'] as Map?)?.cast<String, dynamic>() ?? const {}),
-      sentence: SentenceAnalysis.fromJson((json['sentence'] as Map?)?.cast<String, dynamic>() ?? const {}),
+      word: WordAnalysis.fromJson(
+          (json['word'] as Map?)?.cast<String, dynamic>() ?? const {}),
+      sentence: SentenceAnalysis.fromJson(
+          (json['sentence'] as Map?)?.cast<String, dynamic>() ?? const {}),
     );
   }
 

@@ -32,7 +32,8 @@ class PromptTemplates {
 5. sentence.translation 是整句的中文通顺翻译。
 ''';
 
-  static String buildAnalysisUserPrompt({required String word, required String sentence}) {
+  static String buildAnalysisUserPrompt(
+      {required String word, required String sentence}) {
     return '''
 待解析单词/短语: $word
 所在整句: $sentence

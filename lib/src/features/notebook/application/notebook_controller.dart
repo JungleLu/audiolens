@@ -6,7 +6,8 @@ import '../../storage/data/notebook_repository.dart';
 import '../domain/notebook_entry.dart';
 
 final notebookControllerProvider =
-    AsyncNotifierProvider<NotebookController, List<NotebookEntry>>(NotebookController.new);
+    AsyncNotifierProvider<NotebookController, List<NotebookEntry>>(
+        NotebookController.new);
 
 class NotebookController extends AsyncNotifier<List<NotebookEntry>> {
   @override
@@ -17,7 +18,8 @@ class NotebookController extends AsyncNotifier<List<NotebookEntry>> {
 
   Future<void> refresh() async {
     state = const AsyncLoading();
-    state = await AsyncValue.guard(() => ref.read(notebookRepositoryProvider).listEntries());
+    state = await AsyncValue.guard(
+        () => ref.read(notebookRepositoryProvider).listEntries());
   }
 
   Future<void> deleteEntry(String id) async {
@@ -29,7 +31,8 @@ class NotebookController extends AsyncNotifier<List<NotebookEntry>> {
   /// Re-run AI analysis for a saved card and overwrite it in place.
   Future<void> reanalyze(NotebookEntry entry) async {
     final service = ref.read(analysisServiceProvider);
-    final preferCustom = ref.read(aiSettingsControllerProvider).preferCustomModel;
+    final preferCustom =
+        ref.read(aiSettingsControllerProvider).preferCustomModel;
     final result = await service.analyzeSubtitleSelection(
       word: entry.word,
       sentence: entry.sentence,
@@ -37,7 +40,9 @@ class NotebookController extends AsyncNotifier<List<NotebookEntry>> {
       hasNetwork: true,
       preferCustom: preferCustom,
     );
-    await ref.read(notebookRepositoryProvider).saveAnalysis(entry: result, videoId: entry.videoId);
+    await ref
+        .read(notebookRepositoryProvider)
+        .saveAnalysis(entry: result, videoId: entry.videoId);
     await refresh();
   }
 }

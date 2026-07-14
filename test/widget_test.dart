@@ -23,7 +23,8 @@ Hello there, friend!
       expect(cue.english, 'Hello there, friend!');
       expect(cue.chinese, '你好，朋友！');
       // Word tokens exclude punctuation/whitespace.
-      final words = cue.tokens.where((t) => t.isWord).map((t) => t.text).toList();
+      final words =
+          cue.tokens.where((t) => t.isWord).map((t) => t.text).toList();
       expect(words, ['Hello', 'there', 'friend']);
     });
 
@@ -55,16 +56,28 @@ Dialogue: 0,0:00:04.00,0:00:06.00,Default,,0,0,0,,{\\pos(100,200)}'cause you're 
 
   group('NotebookRepository.buildId', () {
     test('is stable and case-insensitive for dedup', () {
-      final a = NotebookRepository.buildId(videoId: 'v1', timestampMs: 1000, word: 'Drift');
-      final b = NotebookRepository.buildId(videoId: 'v1', timestampMs: 1000, word: 'drift ');
+      final a = NotebookRepository.buildId(
+          videoId: 'v1', timestampMs: 1000, word: 'Drift');
+      final b = NotebookRepository.buildId(
+          videoId: 'v1', timestampMs: 1000, word: 'drift ');
       expect(a, b);
     });
 
     test('differs by video, timestamp, or word', () {
-      final base = NotebookRepository.buildId(videoId: 'v1', timestampMs: 1000, word: 'drift');
-      expect(base, isNot(NotebookRepository.buildId(videoId: 'v2', timestampMs: 1000, word: 'drift')));
-      expect(base, isNot(NotebookRepository.buildId(videoId: 'v1', timestampMs: 2000, word: 'drift')));
-      expect(base, isNot(NotebookRepository.buildId(videoId: 'v1', timestampMs: 1000, word: 'wait')));
+      final base = NotebookRepository.buildId(
+          videoId: 'v1', timestampMs: 1000, word: 'drift');
+      expect(
+          base,
+          isNot(NotebookRepository.buildId(
+              videoId: 'v2', timestampMs: 1000, word: 'drift')));
+      expect(
+          base,
+          isNot(NotebookRepository.buildId(
+              videoId: 'v1', timestampMs: 2000, word: 'drift')));
+      expect(
+          base,
+          isNot(NotebookRepository.buildId(
+              videoId: 'v1', timestampMs: 1000, word: 'wait')));
     });
   });
 
