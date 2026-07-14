@@ -5,7 +5,7 @@
 
 ## Goal
 Deliver the MVP core loop: import local video + external SRT -> play with
-subtitle mode switching -> tap word/sentence -> AI analysis (3-layer strategy)
+subtitle mode switching -> tap word/sentence -> AI analysis (layered strategy)
 -> save to notebook -> review / re-analyze. Playback enhancements: 0.1-3x speed
 and AB loop. Notebook persisted via Drift/SQLite.
 
@@ -49,16 +49,11 @@ To run: `flutter run -d windows` (or an Android/iOS device).
 ### 4. AI pipeline
 - DONE: Unified `AnalysisResult` structure with JSON (de)serialization.
 - DONE: `AiMode` enum + structured prompt template.
-- DONE: 3-layer mode selection (customProvider / cloudEnhanced / offlineFallback).
+- DONE: layered mode selection (customProvider / offlineFallback).
 - DONE: Real OpenAI-compatible HTTP provider via Dio (`response_format: json_object`).
 - DONE: Failure fallback -> offline result (try/catch in provider path).
 - DONE: `analysisServiceProvider` moved to AI layer (`ai/application`).
-- DONE: On-device Gemma inference (`GemmaService` + `flutter_gemma` MediaPipe
-  engine). New `AiMode.onDevice` is preferred whenever a local `.task` model is
-  installed; robust JSON extractor tolerates prose/code-fence wrapping.
-- DONE: On-device model management UI in AI settings (import local .task file /
-  download by URL with progress, status line, uninstall). Web reports
-  unsupported and falls back to cloud/offline.
+- DONE: Robust JSON extractor tolerates prose/code-fence wrapping.
 - NOTE: network connectivity is currently assumed `true`; the HTTP path fails
   gracefully to the offline fallback on any error. Adding `connectivity_plus`
   for an explicit online check is a future enhancement.

@@ -200,8 +200,8 @@ class AnalysisService {
     return error.toString();
   }
 
-  /// Best-effort JSON extraction. On-device and some cloud models wrap the
-  /// payload in prose or ```json code fences; grab the outermost object.
+  /// Best-effort JSON extraction. Some models wrap the payload in prose or
+  /// ```json code fences; grab the outermost object.
   Map<String, dynamic>? _extractJson(String raw) {
     final trimmed = raw.trim();
     if (trimmed.isEmpty) return null;

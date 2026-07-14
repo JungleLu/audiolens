@@ -23,8 +23,7 @@ AudioLens turns any local video plus an external subtitle file into an interacti
 
 - 🎬 **Local video + external subtitles** — import any local video and an SRT or ASS/SSA subtitle file; bilingual (English + Chinese) subtitles are auto-detected and tokenized so every English word is tappable.
 - 📖 **Switchable subtitle modes** — English only, Chinese only, bilingual, or hidden.
-- 🤖 **AI word / sentence analysis** — tap a token to get a structured breakdown. A 3-layer strategy picks the best available engine:
-  - **On-device** (Gemma via `flutter_gemma`, MediaPipe) when a local `.task` model is installed — fully offline.
+- 🤖 **AI word / sentence analysis** — tap a token to get a structured breakdown. A layered strategy picks the best available engine:
   - **Custom provider** — any OpenAI-compatible `/chat/completions` endpoint (OpenAI, Ollama, LM Studio, etc.).
   - **Offline fallback** — a synthetic result so the app never blocks on network failures.
 - 📓 **Persisted notebook** — save analysis cards to a local SQLite database (Drift). Cards de-duplicate on `videoId + timestamp + word`, render the full breakdown, and support re-analysis.
@@ -46,7 +45,7 @@ AudioLens turns any local video plus an external subtitle file into an interacti
 | Android | ✅ |
 | iOS | ✅ |
 | Windows | ✅ |
-| Web | ✅ (on-device Gemma unsupported → falls back to cloud/offline) |
+| Web | ✅ |
 
 ## Getting started
 
@@ -85,7 +84,6 @@ flutter test        # run all tests
 
 Open **Settings → AI** in the app to point AudioLens at an AI backend:
 
-- **On-device (recommended for privacy)** — import a local Gemma `.task` model, or download one by URL from the settings page. Once installed it is preferred automatically. (Not available on Web.)
 - **Custom OpenAI-compatible provider** — set the base URL (e.g. `http://localhost:11434/v1` for Ollama, or `https://api.openai.com/v1`), an optional API key (local models often need none), and the model name. Use **Test connection** to verify.
 
 If no engine is reachable, analysis falls back to a synthetic offline result so the app keeps working.
@@ -111,14 +109,14 @@ Key flows:
 
 - **Player** (`features/player`) is the hub. `PlayerController` (a `Notifier<PlayerSession>`) owns playback state and drives subtitle cues, mode, speed, AB-loop marks, and active-cue tracking, delegating media control to a thin `MediaKitPlayerController` wrapper. AB-loop and active-cue detection run in `_handlePositionChanged`, bound to the media_kit position stream.
 - **Subtitles** — `SubtitleParser` handles SRT and ASS/SSA (auto-detected), treats the first body line as English and the rest as Chinese, and tokenizes English into tappable `SubtitleToken`s.
-- **AI analysis** (`features/ai`) — `AnalysisService.analyzeSubtitleSelection` selects a mode via a 3-layer fallback; any provider failure degrades gracefully to an offline result rather than throwing.
+- **AI analysis** (`features/ai`) — `AnalysisService.analyzeSubtitleSelection` selects a mode via a layered fallback (custom provider → offline); any provider failure degrades gracefully to an offline result rather than throwing.
 - **Notebook persistence** (`features/storage`) — Drift/SQLite at `<app documents>/audiolens.sqlite`. Cards use a stable dedup id `videoId_timestampMs_word`; the full `AnalysisResult` is serialized to an `analysisJson` column.
 
 For a deeper guide (conventions, provider names, `copyWith` semantics), see [CLAUDE.md](CLAUDE.md).
 
 ## Tech stack
 
-Flutter · Riverpod · go_router · media_kit · Drift (SQLite) · Dio · freezed/json_serializable · flutter_gemma (MediaPipe) · shared_preferences.
+Flutter · Riverpod · go_router · media_kit · Drift (SQLite) · Dio · freezed/json_serializable · shared_preferences.
 
 ## Roadmap
 
