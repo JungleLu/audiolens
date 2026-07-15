@@ -5,6 +5,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/theme/app_colors.dart';
 import '../../../core/widgets/section_card.dart';
+import '../../player/application/player_controller.dart';
 import '../application/home_controller.dart';
 import '../domain/video_library_item.dart';
 
@@ -86,10 +87,13 @@ class HomePage extends ConsumerWidget {
                     ),
                   ),
                 ),
+              // Extra space so last card doesn't hide behind now-playing bar.
+              const SizedBox(height: 80),
             ],
           ),
         ),
       ),
+      bottomNavigationBar: const _NowPlayingBar(),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: () async {
           final item = await controller.importVideo();
@@ -102,6 +106,243 @@ class HomePage extends ConsumerWidget {
         icon: const Icon(Icons.add_circle_outline),
         label: const Text('导入视频'),
       ),
+    );
+  }
+}
+
+/// Mini now-playing bar shown at the bottom of the home page.
+/// Visible only when a video is loaded. Tapping resumes the player page.
+class _NowPlayingBar extends ConsumerStatefulWidget {
+  const _NowPlayingBar();
+
+  @override
+  ConsumerState<_NowPlayingBar> createState() => _NowPlayingBarState();
+}
+
+class _NowPlayingBarState extends ConsumerState<_NowPlayingBar>
+    with SingleTickerProviderStateMixin {
+  late final AnimationController _marqueeController;
+
+  @override
+  void initState() {
+    super.initState();
+    _marqueeController = AnimationController(
+      vsync: this,
+      duration: const Duration(seconds: 12),
+    )..repeat();
+  }
+
+  @override
+  void dispose() {
+    _marqueeController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final session = ref.watch(playerControllerProvider);
+    final controller = ref.read(playerControllerProvider.notifier);
+    final items = ref.watch(homeControllerProvider);
+    final lastPlayedPath = ref.watch(lastPlayedPathProvider);
+
+    // A video is actively loaded in the player this session.
+    final bool live = session.mediaPath != null && session.mediaPath!.isEmpty
+        ? false
+        : session.mediaPath != null;
+
+    // Cold-start fallback: no live session yet, so surface the last-played
+    // item's persisted progress from the library.
+    VideoLibraryItem? persisted;
+    if (!live && lastPlayedPath != null) {
+      persisted = items.cast<VideoLibraryItem?>().firstWhere(
+            (i) => i?.mediaPath == lastPlayedPath,
+            orElse: () => null,
+          );
+    }
+
+    if (!live && persisted == null) {
+      return const SizedBox.shrink();
+    }
+
+    final String title = live ? session.title : persisted!.title;
+    final int posMs = live
+        ? session.currentPosition.inMilliseconds
+        : persisted!.positionMs;
+    final int totalMs =
+        live ? session.totalDuration.inMilliseconds : persisted!.durationMs;
+    final bool enabled = totalMs > 0;
+    final double progress =
+        enabled ? (posMs / totalMs).clamp(0.0, 1.0) : 0.0;
+
+    void openPlayer() {
+      final match = live
+          ? items.cast<VideoLibraryItem?>().firstWhere(
+                (i) => i?.mediaPath == session.mediaPath,
+                orElse: () => null,
+              )
+          : persisted;
+      context.push('/player', extra: match);
+    }
+
+    return SafeArea(
+      child: Container(
+        decoration: const BoxDecoration(
+          color: Colors.white,
+          borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
+          boxShadow: [
+            BoxShadow(
+              color: Color(0x14000000),
+              blurRadius: 16,
+              offset: Offset(0, -4),
+            ),
+          ],
+        ),
+        padding: const EdgeInsets.fromLTRB(8, 6, 12, 8),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                IconButton(
+                  // When no live session, tapping play opens the player (which
+                  // resumes from the persisted position). When live, it toggles.
+                  onPressed: () =>
+                      live ? controller.togglePlayback() : openPlayer(),
+                  visualDensity: VisualDensity.compact,
+                  icon: Icon(
+                    live && session.isPlaying
+                        ? Icons.pause_circle_filled
+                        : Icons.play_circle_fill,
+                    size: 34,
+                    color: AppColors.sea,
+                  ),
+                ),
+                Expanded(
+                  child: GestureDetector(
+                    behavior: HitTestBehavior.opaque,
+                    onTap: openPlayer,
+                    child: _MarqueeText(
+                      text: title,
+                      controller: _marqueeController,
+                      style: Theme.of(context).textTheme.bodyMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            color: AppColors.ink,
+                          ),
+                    ),
+                  ),
+                ),
+                const SizedBox(width: 8),
+                Text(
+                  '${_fmt(Duration(milliseconds: posMs))} / ${enabled ? _fmt(Duration(milliseconds: totalMs)) : '--:--'}',
+                  style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                        color: AppColors.moss,
+                      ),
+                ),
+              ],
+            ),
+            SliderTheme(
+              data: SliderTheme.of(context).copyWith(
+                trackHeight: 3,
+                thumbShape:
+                    const RoundSliderThumbShape(enabledThumbRadius: 6),
+                overlayShape:
+                    const RoundSliderOverlayShape(overlayRadius: 12),
+                activeTrackColor: AppColors.sea,
+                inactiveTrackColor: AppColors.clay.withValues(alpha: 0.35),
+                thumbColor: AppColors.sea,
+              ),
+              child: Slider(
+                value: progress,
+                // Seeking only works with a live player; on cold start the
+                // slider is display-only until the user opens the video.
+                onChanged: (live && enabled)
+                    ? (v) => controller.seekTo(
+                        Duration(milliseconds: (v * totalMs).round()))
+                    : null,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _fmt(Duration d) {
+    final h = d.inHours;
+    final m = d.inMinutes.remainder(60).toString().padLeft(2, '0');
+    final s = d.inSeconds.remainder(60).toString().padLeft(2, '0');
+    return h > 0 ? '${h.toString().padLeft(2, '0')}:$m:$s' : '$m:$s';
+  }
+}
+
+/// Single-line scrolling text that loops when wider than its container.
+/// Uses an [AnimationController] so marquee restarts on rebuild without jitter.
+class _MarqueeText extends StatelessWidget {
+  const _MarqueeText({
+    required this.text,
+    required this.controller,
+    this.style,
+  });
+
+  final String text;
+  final AnimationController controller;
+  final TextStyle? style;
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (context, constraints) {
+        final span = TextSpan(text: text, style: style);
+        final tp = TextPainter(
+          text: span,
+          maxLines: 1,
+          textDirection: TextDirection.ltr,
+        )..layout(maxWidth: double.infinity);
+
+        final textWidth = tp.width;
+        final boxWidth = constraints.maxWidth;
+
+        if (textWidth <= boxWidth) {
+          return Text(text, style: style, maxLines: 1);
+        }
+
+        // Scroll the text: slide from 0 → -(textWidth + gap) then reset.
+        const gap = 48.0;
+        final totalScroll = textWidth + gap;
+
+        // The scrolling variant is a Stack of Positioned children, which has no
+        // intrinsic size — it must be given a bounded height, else it expands to
+        // the unbounded cross-axis of the parent Row and crashes layout.
+        return SizedBox(
+          height: tp.height,
+          width: boxWidth,
+          child: ClipRect(
+            child: AnimatedBuilder(
+              animation: controller,
+              builder: (context, _) {
+                final offset = controller.value * totalScroll;
+                return Stack(
+                  clipBehavior: Clip.none,
+                  children: [
+                    Positioned(
+                      left: -offset,
+                      top: 0,
+                      child: Text(text, style: style, maxLines: 1),
+                    ),
+                    // Ghost copy so text appears to loop seamlessly.
+                    Positioned(
+                      left: totalScroll - offset,
+                      top: 0,
+                      child: Text(text, style: style, maxLines: 1),
+                    ),
+                  ],
+                );
+              },
+            ),
+          ),
+        );
+      },
     );
   }
 }

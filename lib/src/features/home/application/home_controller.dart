@@ -12,6 +12,33 @@ final homeControllerProvider =
     NotifierProvider<HomeController, List<VideoLibraryItem>>(
         HomeController.new);
 
+/// Media path of the last video that was played, persisted across launches so
+/// the home "now playing" bar can surface resume progress on a cold start —
+/// before any player state exists. null when nothing has been played yet.
+final lastPlayedPathProvider =
+    NotifierProvider<LastPlayedController, String?>(LastPlayedController.new);
+
+class LastPlayedController extends Notifier<String?> {
+  static const _key = 'home.lastPlayedPath';
+
+  @override
+  String? build() {
+    _load();
+    return null;
+  }
+
+  Future<void> _load() async {
+    final prefs = await SharedPreferences.getInstance();
+    state = prefs.getString(_key);
+  }
+
+  Future<void> set(String mediaPath) async {
+    state = mediaPath;
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.setString(_key, mediaPath);
+  }
+}
+
 class HomeController extends Notifier<List<VideoLibraryItem>> {
   static const _kLibrary = 'home.library';
 
@@ -100,6 +127,40 @@ class HomeController extends Notifier<List<VideoLibraryItem>> {
           item,
     ];
     await _persist();
+  }
+
+  /// Records the last playback position (and, when known, total duration) for a
+  /// library item so it can be resumed and shown on the home bar after a cold
+  /// start. Matches by media path. No-op if no matching item exists (e.g. the
+  /// built-in sample with no media path).
+  Future<void> updateProgress({
+    required String mediaPath,
+    required int positionMs,
+    int? durationMs,
+  }) async {
+    var changed = false;
+    state = [
+      for (final item in state)
+        if (item.mediaPath == mediaPath &&
+            (item.positionMs != positionMs ||
+                (durationMs != null &&
+                    durationMs > 0 &&
+                    item.durationMs != durationMs)))
+          () {
+            changed = true;
+            return item.copyWith(
+              positionMs: positionMs,
+              durationMs: (durationMs != null && durationMs > 0)
+                  ? durationMs
+                  : item.durationMs,
+            );
+          }()
+        else
+          item,
+    ];
+    if (changed) {
+      await _persist();
+    }
   }
 
   Future<void> remove(String id) async {

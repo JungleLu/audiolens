@@ -12,6 +12,8 @@ class VideoLibraryItem {
     required this.watchCount,
     this.mediaPath,
     this.subtitlePath,
+    this.positionMs = 0,
+    this.durationMs = 0,
   });
 
   final String id;
@@ -23,6 +25,8 @@ class VideoLibraryItem {
   final int watchCount;
   final String? mediaPath;
   final String? subtitlePath;
+  final int positionMs;
+  final int durationMs;
 
   Map<String, dynamic> toJson() => {
         'id': id,
@@ -34,6 +38,8 @@ class VideoLibraryItem {
         'watchCount': watchCount,
         'mediaPath': mediaPath,
         'subtitlePath': subtitlePath,
+        'positionMs': positionMs,
+        'durationMs': durationMs,
       };
 
   factory VideoLibraryItem.fromJson(Map<String, dynamic> json) {
@@ -47,6 +53,8 @@ class VideoLibraryItem {
       watchCount: json['watchCount'] as int,
       mediaPath: json['mediaPath'] as String?,
       subtitlePath: json['subtitlePath'] as String?,
+      positionMs: json['positionMs'] as int? ?? 0,
+      durationMs: json['durationMs'] as int? ?? 0,
     );
   }
 
@@ -60,6 +68,8 @@ class VideoLibraryItem {
     int? watchCount,
     String? mediaPath,
     String? subtitlePath,
+    int? positionMs,
+    int? durationMs,
   }) {
     return VideoLibraryItem(
       id: id ?? this.id,
@@ -71,6 +81,8 @@ class VideoLibraryItem {
       watchCount: watchCount ?? this.watchCount,
       mediaPath: mediaPath ?? this.mediaPath,
       subtitlePath: subtitlePath ?? this.subtitlePath,
+      positionMs: positionMs ?? this.positionMs,
+      durationMs: durationMs ?? this.durationMs,
     );
   }
 }

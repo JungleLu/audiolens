@@ -43,8 +43,24 @@ To run: `flutter run -d windows` (or an Android/iOS device).
 ### 3. Subtitles
 - DONE: token/cue models, SRT parser, English word tokenizer, mode binding.
 - DONE: External SRT file reading on video load.
+- DONE: ASS/SSA parsing with style-aware cue classification (dialogue/lyric/watermark).
+- DONE: Noise filtering — theme-song lyrics (`\i1`/OP/ED styles), fansub watermarks
+  (YYeTs / 人人影视 / `www.*.com` etc.), and oversized-positioned title/sign cards
+  are dropped; surviving cues re-numbered contiguously.
 - TODO (nice-to-have): auto language detection for bilingual SRT ordering.
 - TODO (perf, nice-to-have): binary search for active cue on large files.
+
+### 3b. Background audio & resume
+- DONE: `audio_service` integration — `AudioLensAudioHandler` bridges media_kit
+  `Player` to a foreground media service; lockscreen/notification transport controls.
+- DONE: Android manifest wiring (WAKE_LOCK, FOREGROUND_SERVICE[_MEDIA_PLAYBACK],
+  service + media-button receiver) and `AudioServiceActivity`.
+- DONE: Per-video progress persistence (throttled writes + flush on
+  pause/background/detach via app-wide lifecycle observer).
+- DONE: Resume playback from saved position (libmpv `start:` + `_holdResume`
+  re-seek loop to survive Android surface-reset seek-to-0 races).
+- DONE: Re-entering an already-loaded file resumes in place instead of reopening.
+- DONE: Home "now playing" bar with cold-start resume from persisted library progress.
 
 ### 4. AI pipeline
 - DONE: Unified `AnalysisResult` structure with JSON (de)serialization.

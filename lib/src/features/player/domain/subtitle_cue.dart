@@ -11,6 +11,8 @@ class SubtitleToken {
   final int end;
 }
 
+enum SubtitleKind { dialogue, lyric, watermark }
+
 class SubtitleCue {
   const SubtitleCue({
     required this.index,
@@ -19,6 +21,7 @@ class SubtitleCue {
     required this.english,
     required this.chinese,
     required this.tokens,
+    this.kind = SubtitleKind.dialogue,
   });
 
   final int index;
@@ -27,6 +30,7 @@ class SubtitleCue {
   final String english;
   final String chinese;
   final List<SubtitleToken> tokens;
+  final SubtitleKind kind;
 
   /// The non-Chinese line when the subtitle is bilingual; otherwise whichever
   /// single language the file provides.

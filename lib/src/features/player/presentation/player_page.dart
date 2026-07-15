@@ -21,12 +21,33 @@ class PlayerPage extends ConsumerStatefulWidget {
   ConsumerState<PlayerPage> createState() => _PlayerPageState();
 }
 
-class _PlayerPageState extends ConsumerState<PlayerPage> {
+class _PlayerPageState extends ConsumerState<PlayerPage>
+    with WidgetsBindingObserver {
   @override
   void initState() {
     super.initState();
+    WidgetsBinding.instance.addObserver(this);
     Future.microtask(() =>
         ref.read(playerControllerProvider.notifier).loadVideo(widget.item));
+  }
+
+  @override
+  void dispose() {
+    WidgetsBinding.instance.removeObserver(this);
+    super.dispose();
+  }
+
+  @override
+  void didChangeAppLifecycleState(AppLifecycleState state) {
+    super.didChangeAppLifecycleState(state);
+    // Persist the latest position before the OS can suspend/kill us, so a cold
+    // start resumes where the user left off. The position stream stops firing
+    // once backgrounded, so the throttled save alone can miss the last seconds.
+    if (state == AppLifecycleState.paused ||
+        state == AppLifecycleState.detached ||
+        state == AppLifecycleState.hidden) {
+      ref.read(playerControllerProvider.notifier).flushProgress();
+    }
   }
 
   @override
@@ -67,34 +88,7 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Row(
-                          children: [
-                            Expanded(
-                              child: Text(
-                                session.title,
-                                style: Theme.of(context)
-                                    .textTheme
-                                    .titleLarge
-                                    ?.copyWith(fontWeight: FontWeight.w700),
-                              ),
-                            ),
-                            IconButton(
-                              tooltip: '导入字幕',
-                              onPressed: () async {
-                                final loaded =
-                                    await controller.importSubtitle();
-                                if (loaded && context.mounted) {
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(content: Text('字幕已导入')),
-                                  );
-                                }
-                              },
-                              icon: const Icon(Icons.subtitles_outlined),
-                            ),
-                          ],
-                        ),
                         if (session.errorMessage != null) ...[
-                          const SizedBox(height: 12),
                           Text(
                             session.errorMessage!,
                             style: Theme.of(context)
@@ -102,8 +96,8 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
                                 .bodyMedium
                                 ?.copyWith(color: Colors.red.shade700),
                           ),
+                          const SizedBox(height: 8),
                         ],
-                        const SizedBox(height: 16),
                         Expanded(
                           child: _SubtitlePanel(
                               session: session, controller: controller),
@@ -136,6 +130,14 @@ class _PlayerPageState extends ConsumerState<PlayerPage> {
                   }
                 },
                 onNotebook: () => context.push('/notebook'),
+                onImportSubtitle: () async {
+                  final loaded = await controller.importSubtitle();
+                  if (loaded && context.mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('字幕已导入')),
+                    );
+                  }
+                },
                 onTogglePlayback: controller.togglePlayback,
                 onSeek: controller.seekTo,
               ),
@@ -182,14 +184,31 @@ class _SubtitlePanelState extends State<_SubtitlePanel> {
       }
       final targetCtx =
           _itemKeys[widget.session.activeCueIndex]?.currentContext;
-      if (targetCtx != null) {
-        Scrollable.ensureVisible(
-          targetCtx,
-          alignment: 0.4,
-          duration: const Duration(milliseconds: 300),
-          curve: Curves.easeInOut,
-        );
+      if (targetCtx == null) {
+        return;
       }
+      final itemBox = targetCtx.findRenderObject() as RenderBox?;
+      final viewportBox = context.findRenderObject() as RenderBox?;
+      if (itemBox == null || viewportBox == null || !itemBox.hasSize) {
+        return;
+      }
+      // Keep the highlighted line wherever it is as long as it's fully within
+      // the visible window; only page to it once it scrolls out of view.
+      final itemTop =
+          itemBox.localToGlobal(Offset.zero, ancestor: viewportBox).dy;
+      final itemBottom = itemTop + itemBox.size.height;
+      final fullyVisible =
+          itemTop >= 0 && itemBottom <= viewportBox.size.height;
+      if (fullyVisible) {
+        return;
+      }
+      // Land the active line at the top so a fresh page is revealed below it.
+      Scrollable.ensureVisible(
+        targetCtx,
+        alignment: 0.0,
+        duration: const Duration(milliseconds: 300),
+        curve: Curves.easeInOut,
+      );
     });
   }
 
@@ -213,114 +232,111 @@ class _SubtitlePanelState extends State<_SubtitlePanel> {
     final mode = session.subtitleMode;
 
     if (session.cues.isEmpty) {
-      return const Text('暂无字幕');
+      return const Center(child: Text('暂无字幕'));
     }
 
-    return Column(
-      crossAxisAlignment: CrossAxisAlignment.start,
-      children: [
-        Text(
-          '字幕列表',
-          style: Theme.of(context)
-              .textTheme
-              .labelLarge
-              ?.copyWith(color: AppColors.moss),
+    // Hidden mode: no active highlight, no auto-scroll, no per-line AI button —
+    // the list is just a static, scrollable reference with no "current" line.
+    if (mode == SubtitleMode.hidden) {
+      return const Center(
+        child: Text(
+          '已关闭字幕',
+          style: TextStyle(color: AppColors.moss),
         ),
-        const SizedBox(height: 10),
-        Expanded(
-          child: SingleChildScrollView(
-            controller: _scrollController,
-            child: Column(
-              children: session.cues.asMap().entries.map((entry) {
-                final index = entry.key;
-                final cue = entry.value;
-                final selected = index == session.activeCueIndex;
-                final key = _itemKeys.putIfAbsent(index, GlobalKey.new);
+      );
+    }
 
-                final showEnglish = mode == SubtitleMode.english ||
-                    mode == SubtitleMode.bilingual;
-                final showChinese = mode == SubtitleMode.chinese ||
-                    mode == SubtitleMode.bilingual;
-                final englishText =
-                    mode == SubtitleMode.english ? cue.original : cue.english;
-                const activeColor = AppColors.sea;
+    return SingleChildScrollView(
+      controller: _scrollController,
+      child: Column(
+        children: session.cues.asMap().entries.map((entry) {
+          final index = entry.key;
+          final cue = entry.value;
+          final selected = index == session.activeCueIndex;
+          final key = _itemKeys.putIfAbsent(index, GlobalKey.new);
 
-                return Container(
-                  key: key,
-                  margin: const EdgeInsets.only(bottom: 6),
-                  decoration: BoxDecoration(
-                    color: selected ? const Color(0xFFEAF1F6) : null,
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: InkWell(
-                    borderRadius: BorderRadius.circular(14),
-                    onTap: () => widget.controller.selectCue(index),
-                    child: Padding(
-                      padding: const EdgeInsets.symmetric(
-                          horizontal: 12, vertical: 10),
-                      child: Row(
+          final showEnglish =
+              mode == SubtitleMode.english || mode == SubtitleMode.bilingual;
+          final showChinese =
+              mode == SubtitleMode.chinese || mode == SubtitleMode.bilingual;
+          final englishText =
+              mode == SubtitleMode.english ? cue.original : cue.english;
+          const activeColor = AppColors.sea;
+
+          return Container(
+            key: key,
+            margin: const EdgeInsets.only(bottom: 4),
+            decoration: BoxDecoration(
+              color: selected ? const Color(0xFFEAF1F6) : null,
+              borderRadius: BorderRadius.circular(12),
+            ),
+            child: InkWell(
+              borderRadius: BorderRadius.circular(12),
+              onTap: () => widget.controller.selectCue(index),
+              child: Padding(
+                padding:
+                    const EdgeInsets.symmetric(horizontal: 10, vertical: 7),
+                child: Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Expanded(
+                      child: Column(
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
-                          Expanded(
-                            child: Column(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [
-                                if (showEnglish && englishText.isNotEmpty)
-                                  Text(
-                                    englishText,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodyLarge
-                                        ?.copyWith(
-                                          color: selected
-                                              ? activeColor
-                                              : AppColors.ink,
-                                          fontWeight: selected
-                                              ? FontWeight.w700
-                                              : FontWeight.w500,
-                                        ),
+                          if (showEnglish && englishText.isNotEmpty)
+                            Text(
+                              englishText,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodyMedium
+                                  ?.copyWith(
+                                    color:
+                                        selected ? activeColor : AppColors.ink,
+                                    fontWeight: selected
+                                        ? FontWeight.w700
+                                        : FontWeight.w500,
                                   ),
-                                if (showChinese && cue.chinese.isNotEmpty) ...[
-                                  if (showEnglish && englishText.isNotEmpty)
-                                    const SizedBox(height: 4),
-                                  Text(
-                                    cue.chinese,
-                                    style: Theme.of(context)
-                                        .textTheme
-                                        .bodyMedium
-                                        ?.copyWith(
-                                          color: selected
-                                              ? activeColor
-                                              : AppColors.moss,
-                                          fontWeight: selected
-                                              ? FontWeight.w600
-                                              : FontWeight.w400,
-                                        ),
+                            ),
+                          if (showChinese && cue.chinese.isNotEmpty) ...[
+                            if (showEnglish && englishText.isNotEmpty)
+                              const SizedBox(height: 2),
+                            Text(
+                              cue.chinese,
+                              style: Theme.of(context)
+                                  .textTheme
+                                  .bodySmall
+                                  ?.copyWith(
+                                    color:
+                                        selected ? activeColor : AppColors.moss,
+                                    fontWeight: selected
+                                        ? FontWeight.w600
+                                        : FontWeight.w400,
                                   ),
-                                ],
-                              ],
                             ),
-                          ),
-                          const SizedBox(width: 8),
-                          IconButton(
-                            tooltip: 'AI 解析该句',
-                            visualDensity: VisualDensity.compact,
-                            onPressed: () => _analyze(index),
-                            icon: Icon(
-                              Icons.error_outline,
-                              color: selected ? activeColor : AppColors.moss,
-                            ),
-                          ),
+                          ],
                         ],
                       ),
                     ),
-                  ),
-                );
-              }).toList(),
+                    const SizedBox(width: 4),
+                    InkWell(
+                      customBorder: const CircleBorder(),
+                      onTap: () => _analyze(index),
+                      child: Padding(
+                        padding: const EdgeInsets.all(4),
+                        child: Icon(
+                          Icons.auto_awesome,
+                          size: 18,
+                          color: selected ? activeColor : AppColors.moss,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
             ),
-          ),
-        ),
-      ],
+          );
+        }).toList(),
+      ),
     );
   }
 }
@@ -356,8 +372,15 @@ class _PlayerHero extends StatelessWidget {
                 // below the player are not visible. Disable the built-in
                 // double-tap ±10s seek so our own edge double-tap (prev/next
                 // cue) is the only double-tap handler.
+                // The package defaults push the seek bar / bottom bar 42px up,
+                // which clips the seek bar on landscape phones. Pull the bottom
+                // margins in so the timeline is fully visible.
                 fullscreen: const MaterialVideoControlsThemeData(
                   seekOnDoubleTap: false,
+                  bottomButtonBarMargin:
+                      EdgeInsets.only(left: 16, right: 8, bottom: 12),
+                  seekBarMargin:
+                      EdgeInsets.only(left: 16, right: 16, bottom: 12),
                   topButtonBar: [
                     Spacer(),
                     _SpeedControlButton(),
@@ -367,6 +390,10 @@ class _PlayerHero extends StatelessWidget {
                 child: Video(
                   controller: mediaController.videoController,
                   controls: _immersiveVideoControls,
+                  // Keep audio playing when the screen locks / app backgrounds;
+                  // the audio_service foreground service handles background
+                  // playback, so the Video widget must not auto-pause here.
+                  pauseUponEnteringBackgroundMode: false,
                   // Native subtitles aren't tappable, so we hide them and render
                   // our own overlay (with a fullscreen AI-analyze button) instead.
                   subtitleViewConfiguration:
@@ -560,7 +587,7 @@ class _SubtitleOverlay extends ConsumerWidget {
       alignment: Alignment.bottomCenter,
       child: Padding(
         padding:
-            EdgeInsets.only(left: 24, right: 24, bottom: fullscreen ? 96 : 72),
+            EdgeInsets.only(left: 24, right: 24, bottom: fullscreen ? 60 : 72),
         child: Row(
           mainAxisSize: MainAxisSize.min,
           crossAxisAlignment: CrossAxisAlignment.end,
@@ -614,13 +641,14 @@ class _FullscreenAnalyzeButton extends ConsumerWidget {
   }
 }
 
-class _BottomBar extends StatelessWidget {
+class _BottomBar extends StatefulWidget {
   const _BottomBar({
     required this.session,
     required this.onLanguage,
     required this.onSpeed,
     required this.onToggleLoop,
     required this.onNotebook,
+    required this.onImportSubtitle,
     required this.onTogglePlayback,
     required this.onSeek,
   });
@@ -630,11 +658,20 @@ class _BottomBar extends StatelessWidget {
   final VoidCallback onSpeed;
   final VoidCallback onToggleLoop;
   final VoidCallback onNotebook;
+  final VoidCallback onImportSubtitle;
   final Future<void> Function() onTogglePlayback;
   final Future<void> Function(Duration position) onSeek;
 
   @override
+  State<_BottomBar> createState() => _BottomBarState();
+}
+
+class _BottomBarState extends State<_BottomBar> {
+  bool _controlsExpanded = true;
+
+  @override
   Widget build(BuildContext context) {
+    final session = widget.session;
     final String loopLabel;
     if (session.aPoint == null) {
       loopLabel = '标记 A 点';
@@ -645,7 +682,7 @@ class _BottomBar extends StatelessWidget {
     }
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 12, 16, 24),
+      padding: const EdgeInsets.fromLTRB(16, 8, 16, 24),
       decoration: const BoxDecoration(
         color: Colors.white,
         borderRadius: BorderRadius.vertical(top: Radius.circular(28)),
@@ -659,45 +696,80 @@ class _BottomBar extends StatelessWidget {
         children: [
           Row(
             children: [
-              Expanded(
-                child: _ControlButton(
-                  onPressed: onLanguage,
-                  icon: Icons.translate,
-                  label: '语言',
-                ),
+              IconButton(
+                tooltip: '导入字幕',
+                visualDensity: VisualDensity.compact,
+                onPressed: widget.onImportSubtitle,
+                icon: const Icon(Icons.subtitles_outlined,
+                    color: AppColors.moss),
               ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _ControlButton(
-                  onPressed: onSpeed,
-                  icon: Icons.speed,
-                  label: '${_formatSpeed(session.speed)}x',
+              const Spacer(),
+              TextButton.icon(
+                onPressed: () => setState(
+                    () => _controlsExpanded = !_controlsExpanded),
+                icon: Icon(
+                  _controlsExpanded
+                      ? Icons.keyboard_arrow_down
+                      : Icons.keyboard_arrow_up,
+                  size: 18,
+                  color: AppColors.moss,
                 ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _ControlButton(
-                  onPressed: onToggleLoop,
-                  icon: Icons.repeat,
-                  label: loopLabel,
-                ),
-              ),
-              const SizedBox(width: 12),
-              Expanded(
-                child: _ControlButton(
-                  onPressed: onNotebook,
-                  icon: Icons.menu_book_outlined,
-                  label: '生词本',
-                  filled: true,
+                label: Text(
+                  _controlsExpanded ? '收起' : '展开',
+                  style: const TextStyle(color: AppColors.moss, fontSize: 12),
                 ),
               ),
             ],
           ),
-          const SizedBox(height: 4),
+          AnimatedCrossFade(
+            duration: const Duration(milliseconds: 200),
+            crossFadeState: _controlsExpanded
+                ? CrossFadeState.showFirst
+                : CrossFadeState.showSecond,
+            firstChild: Padding(
+              padding: const EdgeInsets.only(bottom: 4),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: _ControlButton(
+                      onPressed: widget.onLanguage,
+                      icon: Icons.translate,
+                      label: '语言',
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _ControlButton(
+                      onPressed: widget.onSpeed,
+                      icon: Icons.speed,
+                      label: '${_formatSpeed(session.speed)}x',
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _ControlButton(
+                      onPressed: widget.onToggleLoop,
+                      icon: Icons.repeat,
+                      label: loopLabel,
+                    ),
+                  ),
+                  const SizedBox(width: 12),
+                  Expanded(
+                    child: _ControlButton(
+                      onPressed: widget.onNotebook,
+                      icon: Icons.menu_book_outlined,
+                      label: '生词本',
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            secondChild: const SizedBox(width: double.infinity),
+          ),
           Row(
             children: [
               IconButton(
-                onPressed: () => onTogglePlayback(),
+                onPressed: () => widget.onTogglePlayback(),
                 icon: Icon(session.isPlaying ? Icons.pause : Icons.play_arrow,
                     color: AppColors.ink),
               ),
@@ -705,7 +777,7 @@ class _BottomBar extends StatelessWidget {
                   style: const TextStyle(color: AppColors.ink)),
               const SizedBox(width: 8),
               Expanded(
-                child: _AbLoopSlider(session: session, onSeek: onSeek),
+                child: _AbLoopSlider(session: session, onSeek: widget.onSeek),
               ),
               Text(
                 session.totalDuration <= Duration.zero
@@ -726,19 +798,16 @@ class _ControlButton extends StatelessWidget {
     required this.onPressed,
     required this.icon,
     required this.label,
-    this.filled = false,
   });
 
   final VoidCallback onPressed;
   final IconData icon;
   final String label;
-  final bool filled;
 
   @override
   Widget build(BuildContext context) {
-    final Color background =
-        filled ? AppColors.sea : AppColors.sea.withValues(alpha: 0.12);
-    final Color foreground = filled ? Colors.white : AppColors.sea;
+    final Color background = AppColors.sea.withValues(alpha: 0.12);
+    const Color foreground = AppColors.sea;
 
     return Material(
       color: background,
@@ -758,7 +827,7 @@ class _ControlButton extends StatelessWidget {
                 maxLines: 1,
                 overflow: TextOverflow.ellipsis,
                 textAlign: TextAlign.center,
-                style: TextStyle(
+                style: const TextStyle(
                   color: foreground,
                   fontSize: 12,
                   fontWeight: FontWeight.w600,

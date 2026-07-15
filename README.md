@@ -22,7 +22,10 @@ AudioLens turns any local video plus an external subtitle file into an interacti
 ## Features
 
 - 🎬 **Local video + external subtitles** — import any local video and an SRT or ASS/SSA subtitle file; bilingual (English + Chinese) subtitles are auto-detected and tokenized so every English word is tappable.
+- 🧹 **Clean subtitles** — theme-song lyrics, fansub watermarks (YYeTs, 人人影视, `www.*.com`, etc.) and oversized title/sign cards are detected and filtered out, so only real dialogue is shown and analyzed.
 - 📖 **Switchable subtitle modes** — English only, Chinese only, bilingual, or hidden.
+- 🔊 **Background audio** — playback continues with the screen off or the app backgrounded (Android foreground media service), with lockscreen/notification transport controls.
+- 💾 **Resume where you left off** — playback position is persisted per video; a home "now playing" bar surfaces progress and jumps back into the player, resuming from the saved spot even after a cold start.
 - 🤖 **AI word / sentence analysis** — tap a token to get a structured breakdown. A layered strategy picks the best available engine:
   - **Custom provider** — any OpenAI-compatible `/chat/completions` endpoint (OpenAI, Ollama, LM Studio, etc.).
   - **Offline fallback** — a synthetic result so the app never blocks on network failures.
@@ -108,7 +111,8 @@ lib/src/
 Key flows:
 
 - **Player** (`features/player`) is the hub. `PlayerController` (a `Notifier<PlayerSession>`) owns playback state and drives subtitle cues, mode, speed, AB-loop marks, and active-cue tracking, delegating media control to a thin `MediaKitPlayerController` wrapper. AB-loop and active-cue detection run in `_handlePositionChanged`, bound to the media_kit position stream.
-- **Subtitles** — `SubtitleParser` handles SRT and ASS/SSA (auto-detected), treats the first body line as English and the rest as Chinese, and tokenizes English into tappable `SubtitleToken`s.
+- **Subtitles** — `SubtitleParser` handles SRT and ASS/SSA (auto-detected), splits bilingual bodies into English/Chinese by CJK content, and tokenizes English into tappable `SubtitleToken`s. Each cue is classified as dialogue, lyric, or watermark (via style name, `\i1` italic markers, watermark signatures, and oversized-positioned title cards); only dialogue survives and indices are re-numbered contiguously.
+- **Background audio & resume** — `AudioLensAudioHandler` bridges the media_kit `Player` to `audio_service` for background playback and lockscreen controls. `PlayerController` throttles progress writes, flushes on pause/background/detach, and reopens an already-loaded file in place; the home `_NowPlayingBar` reads persisted progress for a cold-start resume.
 - **AI analysis** (`features/ai`) — `AnalysisService.analyzeSubtitleSelection` selects a mode via a layered fallback (custom provider → offline); any provider failure degrades gracefully to an offline result rather than throwing.
 - **Notebook persistence** (`features/storage`) — Drift/SQLite at `<app documents>/audiolens.sqlite`. Cards use a stable dedup id `videoId_timestampMs_word`; the full `AnalysisResult` is serialized to an `analysisJson` column.
 
@@ -116,7 +120,7 @@ For a deeper guide (conventions, provider names, `copyWith` semantics), see [CLA
 
 ## Tech stack
 
-Flutter · Riverpod · go_router · media_kit · Drift (SQLite) · Dio · freezed/json_serializable · shared_preferences.
+Flutter · Riverpod · go_router · media_kit · audio_service · Drift (SQLite) · Dio · freezed/json_serializable · shared_preferences.
 
 ## Roadmap
 

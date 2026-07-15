@@ -49,6 +49,7 @@ class PlayerController extends Notifier<PlayerSession> {
     final mediaController = ref.read(mediaKitPlayerProvider);
     mediaController.bindPosition(_handlePositionChanged);
     mediaController.bindDuration(_handleDurationChanged);
+    mediaController.bindPlaying(_handlePlayingChanged);
 
     return PlayerSession(
       title: 'Friends.S03E03.1996.BluRay.1080p.x265.10bit.MNHD-FRDS.mkv',
@@ -70,21 +71,67 @@ class PlayerController extends Notifier<PlayerSession> {
     );
   }
 
+  // Throttles progress persistence so we don't write to shared_preferences on
+  // every position tick (media_kit emits ~4/s). Only the media path currently
+  // loaded is tracked, so seeds/samples with no path never persist.
+  int _lastSavedProgressMs = 0;
+  String? _progressMediaPath;
+
+  // Target of an in-flight manual seek. media_kit's seek is async (with a
+  // buffering delay), and the position stream keeps emitting the *old* position
+  // until it lands. Those stale emissions would otherwise recompute the active
+  // cue back to where we came from, undoing a prev/next jump. While set, we
+  // ignore position updates until the reported position reaches the target.
+  Duration? _pendingSeekTarget;
+
   Future<void> loadVideo(VideoLibraryItem? item) async {
     final parser = ref.read(subtitleParserProvider);
     final mediaController = ref.read(mediaKitPlayerProvider);
     final subtitleContent = await _loadSubtitleContent(item?.subtitlePath);
     final cues = parser.parse(subtitleContent ?? '');
 
+    // Re-entering the player for the file that's already loaded (e.g. it kept
+    // playing in the background) must resume in place, not reopen from 0. Sync
+    // the UI to the live player position instead of the persisted resume mark.
+    final mediaPath = item?.mediaPath;
+    if (mediaPath != null && mediaPath == mediaController.openedPath) {
+      _progressMediaPath = mediaPath;
+      final livePosition = mediaController.position;
+      _lastSavedProgressMs = livePosition.inMilliseconds;
+      state = state.copyWith(
+        title: item?.title ?? state.title,
+        cues: cues,
+        activeCueIndex: cues.isEmpty ? -1 : 0,
+        currentPosition: livePosition,
+        mediaPath: mediaPath,
+        clearAnalysis: true,
+        selectedWord: null,
+        clearA: true,
+        clearB: true,
+        isPlaying: mediaController.playing,
+      );
+      await _syncSubtitleTrack();
+      return;
+    }
+
+    final resumeMs = item?.positionMs ?? 0;
+    final knownDurationMs = item?.durationMs ?? 0;
+    _progressMediaPath = item?.mediaPath;
+    _lastSavedProgressMs = resumeMs;
+
     state = state.copyWith(
       title: item?.title ?? state.title,
       cues: cues,
       activeCueIndex: cues.isEmpty ? -1 : 0,
-      currentPosition: cues.isEmpty
-          ? Duration.zero
-          : Duration(milliseconds: cues.first.startMs),
+      currentPosition: resumeMs > 0
+          ? Duration(milliseconds: resumeMs)
+          : (cues.isEmpty
+              ? Duration.zero
+              : Duration(milliseconds: cues.first.startMs)),
       mediaPath: item?.mediaPath,
-      totalDuration: Duration.zero,
+      // Seed with the persisted duration so the progress bar renders correctly
+      // immediately; the real duration event overwrites it once media loads.
+      totalDuration: Duration(milliseconds: knownDurationMs),
       clearAnalysis: true,
       selectedWord: null,
       clearA: true,
@@ -93,7 +140,13 @@ class PlayerController extends Notifier<PlayerSession> {
     );
 
     if (item?.mediaPath != null) {
-      await mediaController.openLocalFile(item!.mediaPath!);
+      unawaited(ref.read(lastPlayedPathProvider.notifier).set(item!.mediaPath!));
+      await mediaController.openLocalFile(
+        item.mediaPath!,
+        title: item.title,
+        startPosition:
+            resumeMs > 0 ? Duration(milliseconds: resumeMs) : null,
+      );
     }
     await _syncSubtitleTrack();
   }
@@ -257,6 +310,11 @@ class PlayerController extends Notifier<PlayerSession> {
       throw StateError('No active subtitle cue');
     }
 
+    // Pause playback while the user reads the analysis (portrait + fullscreen).
+    if (state.isPlaying) {
+      await ref.read(mediaKitPlayerProvider).pause();
+    }
+
     state = state.copyWith(
         isAnalyzing: true, selectedWord: word, clearAnalysis: true);
     try {
@@ -301,11 +359,23 @@ class PlayerController extends Notifier<PlayerSession> {
       return;
     }
     final positionMs = state.currentPosition.inMilliseconds;
-    final index = cues.indexWhere((cue) => cue.startMs > positionMs + 250);
-    if (index == -1) {
+    // Anchor on the current cue (the last one that has started) and step to the
+    // one after it. Using the current cue as the anchor — rather than a fuzzy
+    // "startMs > position + tolerance" window — avoids skipping a cue when the
+    // next one begins within the tolerance of the current playback position
+    // (common with back-to-back subtitles).
+    var currentIndex = -1;
+    for (var i = cues.length - 1; i >= 0; i--) {
+      if (cues[i].startMs <= positionMs) {
+        currentIndex = i;
+        break;
+      }
+    }
+    final targetIndex = currentIndex + 1;
+    if (targetIndex >= cues.length) {
       return;
     }
-    _seekToCue(index);
+    _seekToCue(targetIndex);
   }
 
   /// Jump playback to the start of the previous subtitle cue. When playback is
@@ -339,11 +409,13 @@ class PlayerController extends Notifier<PlayerSession> {
 
   void _seekToCue(int index) {
     final cue = state.cues[index];
+    final target = Duration(milliseconds: cue.startMs);
+    _pendingSeekTarget = target;
     state = state.copyWith(
       activeCueIndex: index,
-      currentPosition: Duration(milliseconds: cue.startMs),
+      currentPosition: target,
     );
-    ref.read(mediaKitPlayerProvider).seek(Duration(milliseconds: cue.startMs));
+    ref.read(mediaKitPlayerProvider).seek(target);
   }
 
   void selectCue(int index) {
@@ -351,13 +423,15 @@ class PlayerController extends Notifier<PlayerSession> {
       return;
     }
     final cue = state.cues[index];
+    final target = Duration(milliseconds: cue.startMs);
+    _pendingSeekTarget = target;
     state = state.copyWith(
       activeCueIndex: index,
-      currentPosition: Duration(milliseconds: cue.startMs),
+      currentPosition: target,
       clearAnalysis: true,
       selectedWord: null,
     );
-    ref.read(mediaKitPlayerProvider).seek(Duration(milliseconds: cue.startMs));
+    ref.read(mediaKitPlayerProvider).seek(target);
   }
 
   Future<String?> _loadSubtitleContent(String? subtitlePath) async {
@@ -424,7 +498,73 @@ class PlayerController extends Notifier<PlayerSession> {
     state = state.copyWith(totalDuration: duration);
   }
 
+  void _handlePlayingChanged(bool playing) {
+    if (playing == state.isPlaying) {
+      return;
+    }
+    state = state.copyWith(isPlaying: playing);
+    // Persist the position when playback pauses/ends so a resume is accurate
+    // even if the throttle hasn't fired recently.
+    if (!playing) {
+      _saveProgress(force: true);
+    }
+  }
+
+  /// Persists the current playback position immediately, bypassing the 5s
+  /// throttle. Called when the app is backgrounded / paused / detached so the
+  /// latest position survives a cold start (the position stream stops emitting
+  /// once the app is suspended, so the throttle alone can lose the last few
+  /// seconds). Reads the live player position rather than [state] since the
+  /// stream may not have delivered the newest tick to [state] yet.
+  Future<void> flushProgress() async {
+    final mediaPath = _progressMediaPath;
+    if (mediaPath == null || mediaPath.isEmpty) {
+      return;
+    }
+    final livePosition = ref.read(mediaKitPlayerProvider).position;
+    final positionMs = livePosition.inMilliseconds;
+    if (positionMs <= 0) {
+      return;
+    }
+    _lastSavedProgressMs = positionMs;
+    await ref.read(homeControllerProvider.notifier).updateProgress(
+          mediaPath: mediaPath,
+          positionMs: positionMs,
+          durationMs: state.totalDuration.inMilliseconds,
+        );
+  }
+
+  void _saveProgress({bool force = false}) {
+    final mediaPath = _progressMediaPath;
+    if (mediaPath == null || mediaPath.isEmpty) {
+      return;
+    }
+    final positionMs = state.currentPosition.inMilliseconds;
+    if (!force && (positionMs - _lastSavedProgressMs).abs() < 5000) {
+      return;
+    }
+    _lastSavedProgressMs = positionMs;
+    unawaited(ref.read(homeControllerProvider.notifier).updateProgress(
+          mediaPath: mediaPath,
+          positionMs: positionMs,
+          durationMs: state.totalDuration.inMilliseconds,
+        ));
+  }
+
   Future<void> _handlePositionChanged(Duration position) async {
+    // A manual seek (prev/next cue, tap-to-select) is in flight. Ignore stale
+    // position emissions that still report the pre-seek location — acting on
+    // them would recompute the active cue back to where we jumped from. Once
+    // the reported position reaches the target (±400ms for buffering slack),
+    // the seek has landed and normal tracking resumes.
+    final pending = _pendingSeekTarget;
+    if (pending != null) {
+      if ((position.inMilliseconds - pending.inMilliseconds).abs() > 400) {
+        return;
+      }
+      _pendingSeekTarget = null;
+    }
+
     final bPoint = state.bPoint;
     final aPoint = state.aPoint;
     if (aPoint != null && bPoint != null && position >= bPoint) {
@@ -432,6 +572,8 @@ class PlayerController extends Notifier<PlayerSession> {
       state = state.copyWith(currentPosition: aPoint);
       return;
     }
+
+    _saveProgress();
 
     final cues = state.cues;
     final positionMs = position.inMilliseconds;

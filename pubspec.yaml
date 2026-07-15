@@ -29,6 +29,7 @@ dependencies:
   shared_preferences: ^2.3.1
   collection: ^1.18.0
   gbk_codec: ^0.4.0
+  audio_service: ^0.18.15
 
 dev_dependencies:
   flutter_test:

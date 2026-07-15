@@ -52,6 +52,59 @@ Dialogue: 0,0:00:04.00,0:00:06.00,Default,,0,0,0,,{\\pos(100,200)}'cause you're 
       expect(cues, hasLength(1));
       expect(cues.single.english, "'cause you're there for me too.");
     });
+
+    test('filters ASS theme-song lyrics, watermarks and title cards', () {
+      const ass = '''
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:22:07.46,0:22:08.93,*Default,NTP,0000,0000,0000,,怎么了  甜心  有什么问题\\N{\\fn微软雅黑\\fs14}What? Honey,what is it?
+Dialogue: 0,0:22:08.93,0:22:10.76,*Default,NTP,0000,0000,0000,,我的发型不对吗\\N{\\fn微软雅黑\\fs14}Did I get wrong, did I get the hair wrong?
+Dialogue: 0,0:22:10.84,0:22:11.51,*Default,NTP,0000,0000,0000,,还是别的问题  \\N{\\fn微软雅黑\\fs14}Or what?
+Dialogue: 0,0:22:11.51,0:22:13.37,*Default,NTP,0000,0000,0000,,跟你想像得不同  怎么回事\\N{\\fn微软雅黑\\fs14}Did you just picture it differently? What, what?
+Dialogue: 0,0:22:13.40,0:22:16.49,*Default,NTP,0000,0000,0000,,不不  不是你的问题  是...\\N{\\fn微软雅黑\\fs14}No, no. It's not you. It's, it's....
+Dialogue: 0,0:22:22.14,0:22:25.83,*Default,NTP,0000,0000,0000,,怎么了  拜托  甜心  你把我吓坏了\\N{\\fn微软雅黑\\fs14}What is it? Come on, sweetie. You're,like,freaking me out here.
+Dialogue: 0,0:22:28.63,0:22:31.55,*Default,NTP,0000,0000,0000,,我恨钱德勒  那个混蛋毁了我的人生\\N{\\fn微软雅黑\\fs14}I hate Chandler. The bastard ruined my life!
+Dialogue: 0,0:00:22.64,0:00:24.92,*Default,NTP,0000,0000,0000,,{\\fad(500,0)\\fn手写大象体\\b1\\fs43\\pos(187.945,207.436)}老友记\\N{\\fs16}第三季第一集
+Dialogue: 0,0:00:27.71,0:00:32.89,*Default,NTP,0000,0000,0000,,{\\an3\\fn方正宋刻本秀楷简体\\shad0\\bord0}没人告诉你生活会是这样\\N{\\fn微软雅黑\\fs14\\i1}So no one told you life was gonna be this way
+Dialogue: 0,0:00:32.89,0:00:35.01,*Default,NTP,0000,0000,0000,,{\\an3\\fn方正宋刻本秀楷简体\\shad0\\bord0}你滑稽的工作  你的差劲\\N{\\fn微软雅黑\\fs14\\i1}your jobs a joke, you're broke,
+Dialogue: 0,0:01:01.46,0:01:04.47,*Default,NTP,0000,0000,0000,,{\\an3\\fn方正宋刻本秀楷简体\\shad0\\bord0}因为你也陪伴着我\\N{\\fn微软雅黑\\fs14\\i1}'cause you're there for me too.
+Dialogue: 0,0:01:07.46,0:01:11.96,*Default,NTP,0000,0000,0000,,{\\fad(0,500)\\fs16\\bord0\\shad0\\blur5\\t(0,500,\\blur0)\\b1\\c&HECB000&\\pos(99,242)}蓝光转压 双语字幕
+Dialogue: 0,0:01:07.46,0:01:11.96,*Default,NTP,0000,0000,0000,,{\\fad(0,500)\\fn方正准圆_GBK\\b1\\bord0\\shad0\\fs17\\pos(235.108,242)\\K40}本字幕来源网络\\N{\\K40}后期  吉吉\\N{\\fs18}{\\fn方正综艺_GBK\\c&H26F4FF&}{\\K40}www.YYeTs.com
+''';
+      final cues = parser.parse(ass);
+
+      // Only the 7 real dialogue lines (0:22:07–0:22:31) survive.
+      expect(cues, hasLength(7));
+      expect(cues.first.english, 'What? Honey,what is it?');
+      expect(cues.first.chinese, '怎么了  甜心  有什么问题');
+      expect(cues.last.english, 'I hate Chandler. The bastard ruined my life!');
+      // Index is re-numbered contiguously after filtering.
+      expect(cues.map((c) => c.index), [1, 2, 3, 4, 5, 6, 7]);
+      // No lyric, title card or watermark leaked through.
+      final joined = cues.map((c) => '${c.english} ${c.chinese}').join(' ');
+      expect(joined.contains('no one told you'), isFalse);
+      expect(joined.contains('老友记'), isFalse);
+      expect(joined.contains('YYeTs'), isFalse);
+      expect(joined.contains('双语字幕'), isFalse);
+    });
+
+    test('filters SRT watermark line by text', () {
+      const srt = '''
+1
+00:00:01,000 --> 00:00:03,500
+Hello there!
+你好！
+
+2
+00:05:00,000 --> 00:05:03,000
+www.YYeTs.com
+人人影视
+''';
+      final cues = parser.parse(srt);
+
+      expect(cues, hasLength(1));
+      expect(cues.single.english, 'Hello there!');
+    });
   });
 
   group('NotebookRepository.buildId', () {
